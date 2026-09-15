@@ -1,0 +1,43 @@
+name: pipeline
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # required for Workload Identity Federation
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-deployer@PROJECT_ID.iam.gserviceaccount.com
+
+      - name: tf_init
+        run: terraform -chdir=terraform init
+
+      - name: tf_plan
+        run: terraform -chdir=terraform plan -out=tfplan
+
+      - name: build_image
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          docker build -t us-central1-docker.pkg.dev/PROJECT_ID/fish-ops-images/ephemeral:${{ github.run_id }} app/
+          docker push us-central1-docker.pkg.dev/PROJECT_ID/fish-ops-images/ephemeral:${{ github.run_id }}
+
+      - name: tf_apply
+        run: |
+          terraform -chdir=terraform apply -auto-approve \
+            -var="container_image=us-central1-docker.pkg.dev/PROJECT_ID/fish-ops-images/ephemeral:${{ github.run_id }}"
+
+      - name: smoke_test
+        run: |
+          URL=$(terraform -chdir=terraform output -raw service_url)
+          curl --fail --retry 5 --retry-delay 5 "$URL"
