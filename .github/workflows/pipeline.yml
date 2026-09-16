@@ -11,6 +11,11 @@ jobs:
   run:
     runs-on: ubuntu-latest
     steps:
+      ## Install Terraform 
+      - name: setup_terraform
+        uses: hashicorp/setup-terraform@v3
+
+      ## Checkout the Repo
       - name: checkout
         uses: actions/checkout@v4
 
@@ -24,7 +29,7 @@ jobs:
         run: terraform -chdir=terraform init
 
       - name: tf_plan
-        run: terraform -chdir=terraform plan -out=tfplan
+        run: terraform -chdir=terraform plan -out=tfplan -var="container_image=us-central1-docker.pkg.dev/project-95dc5755-7684-4706-bf5/fish-ops-images/ephemeral:${{ github.run_id }}"
 
       - name: build_image
         run: |
