@@ -17,8 +17,8 @@ jobs:
       - name: auth
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-          service_account: github-deployer@PROJECT_ID.iam.gserviceaccount.com
+          workload_identity_provider: projects/782390899175/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-deployer@project-95dc5755-7684-4706-bf5.iam.gserviceaccount.com
 
       - name: tf_init
         run: terraform -chdir=terraform init
@@ -29,13 +29,13 @@ jobs:
       - name: build_image
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-          docker build -t us-central1-docker.pkg.dev/PROJECT_ID/fish-ops-images/ephemeral:${{ github.run_id }} app/
-          docker push us-central1-docker.pkg.dev/PROJECT_ID/fish-ops-images/ephemeral:${{ github.run_id }}
+          docker build -t us-central1-docker.pkg.dev/project-95dc5755-7684-4706-bf5/fish-ops-images/ephemeral:${{ github.run_id }} app/
+          docker push us-central1-docker.pkg.dev/project-95dc5755-7684-4706-bf5/fish-ops-images/ephemeral:${{ github.run_id }}
 
       - name: tf_apply
         run: |
           terraform -chdir=terraform apply -auto-approve \
-            -var="container_image=us-central1-docker.pkg.dev/PROJECT_ID/fish-ops-images/ephemeral:${{ github.run_id }}"
+            -var="container_image=us-central1-docker.pkg.dev/project-95dc5755-7684-4706-bf5/fish-ops-images/ephemeral:${{ github.run_id }}"
 
       - name: smoke_test
         run: |
