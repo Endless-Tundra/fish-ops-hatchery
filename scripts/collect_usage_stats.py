@@ -250,6 +250,14 @@ def get_github_actions_minutes(repo):
         
         print(f"Total Actions Minutes Used This Cycle: {total_minutes} / {included_minutes} mins")
         return total_minutes, f"~{total_minutes} minutes Used"
+    
+    except subprocess.CalledProcessError as e:
+        print(f"'gh api' command failed with exit code {e.returncode}", file=sys.stderr)
+        print(f"Error Details: {e.stderr}", file=sys.stderr)
+        return None
+    except json.JSONDecodeError:
+        print("Failed to parse JSON output from 'gh api'", file=sys.stderr)
+        return None
 
 
 
