@@ -1,0 +1,27 @@
+{
+  "updated_at": "2026-09-25T03:31:28.710107+00:00",
+  "source": "live-gcp-usage-stats",
+  "metrics": {
+    "cloud_run": {
+      "requests": 14200,
+      "vcpu_seconds": 2340,
+      "display": "~14,200 requests & 2,340 vCPU-sec"
+    },
+    "artifact_registry": {
+      "image_size_mb": 38.4,
+      "display": "38.4 MB (Distroless image)"
+    },
+    "ci_cd": {
+      "minutes": 45,
+      "display": "~45 minutes / month"
+    },
+    "logging_monitoring": {
+      "ingested_gb": 0.18,
+      "display": "< 0.2 GB / month"
+    },
+    "cloud_storage": {
+      "state_size_kb": 42.1,
+      "display": "42.1 KB state file"
+    }
+  }
+}
