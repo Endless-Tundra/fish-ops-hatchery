@@ -233,25 +233,31 @@ def get_cloud_run_metrics(project_id, service_name):
 def get_github_actions_minutes():
     print("Starting Action Check..")
     command = ["gh", "api", "user/billing/actions"]
-    command
 
-    # Run the command and capture standard output
-    result = subprocess.run(
-        command, 
-        capture_output=True, 
-        text=True, 
-        check=True
-    )
-    
-    # Parse the JSON string outputted by gh api
-    data = json.loads(result.stdout)
-    data
-    
-    total_minutes = data.get("total_minutes_used")
-    included_minutes = data.get("included_minutes")
-    
-    print(f"Total Actions Minutes Used This Cycle: {total_minutes} / {included_minutes} mins")
-    return total_minutes, f"~{total_minutes} minutes Used"
+    try:
+        # Run the command and capture standard output
+        result = subprocess.run(
+            command, 
+            capture_output=True, 
+            text=True, 
+            check=True
+        )
+        
+        # Parse the JSON string outputted by gh api
+        data = json.loads(result.stdout)
+
+        total_minutes = data.get("total_minutes_used")
+        included_minutes = data.get("included_minutes")
+        
+        print(f"Total Actions Minutes Used This Cycle: {total_minutes} / {included_minutes} mins")
+        return total_minutes, f"~{total_minutes} minutes Used"
+
+    except subprocess.CalledProcessError as e:
+        # print the hidden error coming from the GitHub CLI
+        print(f"GitHub CLI Error (Exit Code {e.returncode}):", file=sys.stderr)
+        print(f"STDOUT: {e.stdout}", file=sys.stderr)
+        print(f"STDERR: {e.stderr}", file=sys.stderr)
+        raise e
 
 
 
