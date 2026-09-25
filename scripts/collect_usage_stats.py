@@ -231,51 +231,26 @@ def get_cloud_run_metrics(project_id, service_name):
 
 
 def get_github_actions_minutes(repo):
-    """Approximate GitHub Actions minutes used this month.
+    command = ["gh", "api", "user/billing/actions"]
+    
+    try:
+        # Run the command and capture standard output
+        result = subprocess.run(
+            command, 
+            capture_output=True, 
+            text=True, 
+            check=True
+        )
+        
+        # Parse the JSON string outputted by gh api
+        data = json.loads(result.stdout)
+        
+        total_minutes = data.get("total_minutes_used")
+        included_minutes = data.get("included_minutes")
+        
+        print(f"Total Actions Minutes Used This Cycle: {total_minutes} / {included_minutes} mins")
+        return total_minutes, f"~{total_minutes} minutes Used"
 
-    GitHub's dedicated "workflow run usage" (timing) endpoint -- the only
-    place `run_duration_ms` actually exists -- is being retired (GitHub
-    changelog, 2025-02-02). The original version of this function queried
-    the wrong endpoint entirely (the plain runs list has no duration
-    field at all), which silently produced "0 minutes" every time rather
-    than erroring.
-
-    This instead approximates each run's duration as
-    (updated_at - run_started_at), summed across completed runs so far
-    this month. For a single-job workflow like pipeline.yml this tracks
-    real billable time closely; it will under/overcount for workflows
-    with multiple parallel jobs, since GitHub bills per-job, not per-run.
-    """
-    now = datetime.datetime.now(datetime.timezone.utc)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    cmd = (
-        f"gh api /repos/{repo}/actions/runs --paginate "
-        f'--jq \'.workflow_runs[] | select(.status == "completed") '
-        f"| {{started: .run_started_at, updated: .updated_at}}'"
-    )
-    output = run_cmd(cmd)
-    if not output:
-        return None, "unavailable (check `gh auth status` -- this needs its own login, separate from GITHUB_PAT)"
-
-    total_seconds = 0.0
-    counted = 0
-    for line in output.splitlines():
-        if not line.strip():
-            continue
-        try:
-            entry = json.loads(line)
-            started = datetime.datetime.fromisoformat(entry["started"].replace("Z", "+00:00"))
-            updated = datetime.datetime.fromisoformat(entry["updated"].replace("Z", "+00:00"))
-        except (KeyError, ValueError, TypeError):
-            continue
-        if started < month_start:
-            continue
-        total_seconds += max((updated - started).total_seconds(), 0)
-        counted += 1
-
-    mins = round(total_seconds / 60)
-    return mins, f"~{mins} minutes / month (approx., {counted} runs, wall-clock based)"
 
 
 def main():

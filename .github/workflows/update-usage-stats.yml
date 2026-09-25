@@ -35,7 +35,7 @@ jobs:
           python scripts/collect_usage_stats.py /tmp/usage.json
         env:
           GCP_PROJECT_ID: project-95dc5755-7684-4706-bf5
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.USAGE }}
 
       - name: Deploy usage.json to orphan usage-stats branch
         run: |
