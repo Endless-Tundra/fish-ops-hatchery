@@ -1,27 +1,25 @@
 {
-  "updated_at": "2026-09-25T03:31:28.710107+00:00",
+  "updated_at": "2026-09-25T04:25:01.537900+00:00",
   "source": "live-gcp-usage-stats",
   "metrics": {
     "cloud_run": {
-      "requests": 14200,
-      "vcpu_seconds": 2340,
-      "display": "~14,200 requests & 2,340 vCPU-sec"
+      "requests": 187,
+      "vcpu_seconds": 395,
+      "display": "~187 requests & 395 vCPU-sec"
     },
     "artifact_registry": {
-      "image_size_mb": 38.4,
-      "display": "38.4 MB (Distroless image)"
+      "total_size_mb": 0.0,
+      "free_tier_limit_mb": 500,
+      "display": "0.0 MB across 1 repository"
     },
     "ci_cd": {
-      "minutes": 45,
-      "display": "~45 minutes / month"
-    },
-    "logging_monitoring": {
-      "ingested_gb": 0.18,
-      "display": "< 0.2 GB / month"
+      "minutes": null,
+      "display": "unavailable (check `gh auth status` -- this needs its own login, separate from GITHUB_PAT)"
     },
     "cloud_storage": {
-      "state_size_kb": 42.1,
-      "display": "42.1 KB state file"
+      "total_size_gb": 0.042,
+      "free_tier_limit_gb": 5,
+      "display": "0.042 GB across all buckets"
     }
   }
 }
