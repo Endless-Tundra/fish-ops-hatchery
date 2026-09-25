@@ -1,0 +1,66 @@
+name: Update GCP and GitHub Usage Stats
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at midnight UTC
+  workflow_dispatch:      # Allows manual trigger anytime from GitHub Actions tab
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  usage-stats:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/782390899175/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-deployer@project-95dc5755-7684-4706-bf5.iam.gserviceaccount.com
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Generate usage.json
+        run: |
+          python scripts/collect_usage_stats.py /tmp/usage.json
+        env:
+          GCP_PROJECT_ID: project-95dc5755-7684-4706-bf5
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Deploy usage.json to orphan usage-stats branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Fetch remote branches to check if usage-stats already exists
+          git fetch origin usage-stats || true
+
+          # Create or switch to the orphan usage-stats branch
+          if git rev-parse --verify origin/usage-stats >/dev/null 2>&1; then
+            git checkout usage-stats
+          else
+            git checkout --orphan usage-stats
+          fi
+
+          # Keep the branch completely clean — only usage.json exists here
+          git rm -rf . >/dev/null 2>&1 || true
+          cp /tmp/usage.json ./usage.json
+          git add usage.json
+          
+          # Only commit and push if there are changes
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(usage-stats): update zero-cost metrics [skip ci]"
+            git push origin usage-stats
+          else
+            echo "No metric changes detected. Skipping push."
+          fi
