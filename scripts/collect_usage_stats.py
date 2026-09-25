@@ -230,34 +230,28 @@ def get_cloud_run_metrics(project_id, service_name):
     return reqs, vcpu_sec, f"~{reqs:,} requests & {vcpu_sec:,} vCPU-sec"
 
 
-def get_github_actions_minutes(repo):
+def get_github_actions_minutes():
+    print("Starting Action Check..")
     command = ["gh", "api", "user/billing/actions"]
+    command
+
+    # Run the command and capture standard output
+    result = subprocess.run(
+        command, 
+        capture_output=True, 
+        text=True, 
+        check=True
+    )
     
-    try:
-        # Run the command and capture standard output
-        result = subprocess.run(
-            command, 
-            capture_output=True, 
-            text=True, 
-            check=True
-        )
-        
-        # Parse the JSON string outputted by gh api
-        data = json.loads(result.stdout)
-        
-        total_minutes = data.get("total_minutes_used")
-        included_minutes = data.get("included_minutes")
-        
-        print(f"Total Actions Minutes Used This Cycle: {total_minutes} / {included_minutes} mins")
-        return total_minutes, f"~{total_minutes} minutes Used"
+    # Parse the JSON string outputted by gh api
+    data = json.loads(result.stdout)
+    data
     
-    except subprocess.CalledProcessError as e:
-        print(f"'gh api' command failed with exit code {e.returncode}", file=sys.stderr)
-        print(f"Error Details: {e.stderr}", file=sys.stderr)
-        return None
-    except json.JSONDecodeError:
-        print("Failed to parse JSON output from 'gh api'", file=sys.stderr)
-        return None
+    total_minutes = data.get("total_minutes_used")
+    included_minutes = data.get("included_minutes")
+    
+    print(f"Total Actions Minutes Used This Cycle: {total_minutes} / {included_minutes} mins")
+    return total_minutes, f"~{total_minutes} minutes Used"
 
 
 
@@ -271,7 +265,7 @@ def main():
     ar_total_mb, ar_display = get_artifact_registry_total(project_id)
     gcs_total_gb, gcs_display = get_gcs_total_size(project_id)
     cr_reqs, cr_vcpu, cr_display = get_cloud_run_metrics(project_id, cloud_run_service)
-    gh_mins, gh_display = get_github_actions_minutes(repo)
+    gh_mins, gh_display = get_github_actions_minutes()
 
     data = {
         "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
