@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-09-28T03:36:42.697593+00:00",
+  "updated_at": "2026-09-28T03:45:56.554898+00:00",
   "source": "live-gcp-usage-stats",
   "metrics": {
     "cloud_run": {
@@ -12,21 +12,15 @@
       "free_tier_limit_mb": 500,
       "display": "0.0 MB across 1 repository"
     },
-    "ci_cd": {
-      "minutes": null,
-      "free_tier_limit_minutes": 2000,
-      "source": null,
-      "display": "unavailable (billing and runs APIs all failed -- see warnings above)"
-    },
     "cloud_storage": {
       "total_size_gb": 0.052,
       "free_tier_limit_gb": 5,
       "display": "0.052 GB across all buckets"
     },
     "logging": {
-      "ingested_gb": null,
+      "ingested_gb": 0.0024,
       "free_tier_limit_gb": 50,
-      "display": "unavailable (check Cloud Monitoring API is enabled / permissions)"
+      "display": "0.0024 GiB ingested this month"
     }
   }
 }
