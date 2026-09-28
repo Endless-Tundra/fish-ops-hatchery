@@ -1,11 +1,11 @@
 {
-  "updated_at": "2026-09-28T03:14:31.236467+00:00",
+  "updated_at": "2026-09-28T03:36:42.697593+00:00",
   "source": "live-gcp-usage-stats",
   "metrics": {
     "cloud_run": {
-      "requests": 262,
-      "vcpu_seconds": 588,
-      "display": "~262 requests & 588 vCPU-sec"
+      "requests": 267,
+      "vcpu_seconds": 595,
+      "display": "~267 requests & 595 vCPU-sec"
     },
     "artifact_registry": {
       "total_size_mb": 0.0,
@@ -15,7 +15,8 @@
     "ci_cd": {
       "minutes": null,
       "free_tier_limit_minutes": 2000,
-      "display": "unavailable (billing API and runs API both failed -- see warnings above)"
+      "source": null,
+      "display": "unavailable (billing and runs APIs all failed -- see warnings above)"
     },
     "cloud_storage": {
       "total_size_gb": 0.052,
