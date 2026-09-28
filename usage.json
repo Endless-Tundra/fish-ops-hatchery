@@ -1,11 +1,11 @@
 {
-  "updated_at": "2026-09-25T04:25:01.537900+00:00",
+  "updated_at": "2026-09-28T03:14:31.236467+00:00",
   "source": "live-gcp-usage-stats",
   "metrics": {
     "cloud_run": {
-      "requests": 187,
-      "vcpu_seconds": 395,
-      "display": "~187 requests & 395 vCPU-sec"
+      "requests": 262,
+      "vcpu_seconds": 588,
+      "display": "~262 requests & 588 vCPU-sec"
     },
     "artifact_registry": {
       "total_size_mb": 0.0,
@@ -14,12 +14,18 @@
     },
     "ci_cd": {
       "minutes": null,
-      "display": "unavailable (check `gh auth status` -- this needs its own login, separate from GITHUB_PAT)"
+      "free_tier_limit_minutes": 2000,
+      "display": "unavailable (billing API and runs API both failed -- see warnings above)"
     },
     "cloud_storage": {
-      "total_size_gb": 0.042,
+      "total_size_gb": 0.052,
       "free_tier_limit_gb": 5,
-      "display": "0.042 GB across all buckets"
+      "display": "0.052 GB across all buckets"
+    },
+    "logging": {
+      "ingested_gb": null,
+      "free_tier_limit_gb": 50,
+      "display": "unavailable (check Cloud Monitoring API is enabled / permissions)"
     }
   }
 }
