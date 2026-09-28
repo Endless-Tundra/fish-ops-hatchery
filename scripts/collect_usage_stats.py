@@ -230,35 +230,104 @@ def get_cloud_run_metrics(project_id, service_name):
     return reqs, vcpu_sec, f"~{reqs:,} requests & {vcpu_sec:,} vCPU-sec"
 
 
-def get_github_actions_minutes():
-    print("Starting Action Check..")
-    command = ["gh", "api", "user/billing/actions"]
-
+def _gh(args, timeout=30):
+    """Run a gh CLI command (no shell) and return stdout, or None on failure.
+    gh prints the API's error body to stdout and the HTTP status to stderr,
+    so both are echoed on failure -- that's usually where the real reason is."""
     try:
-        # Run the command and capture standard output
-        result = subprocess.run(
-            command, 
-            capture_output=True, 
-            text=True, 
-            check=True
+        res = subprocess.run(
+            ["gh", *args], capture_output=True, text=True, check=True, timeout=timeout
         )
-        
-        # Parse the JSON string outputted by gh api
-        data = json.loads(result.stdout)
-
-        total_minutes = data.get("total_minutes_used")
-        included_minutes = data.get("included_minutes")
-        
-        print(f"Total Actions Minutes Used This Cycle: {total_minutes} / {included_minutes} mins")
-        return total_minutes, f"~{total_minutes} minutes Used"
-
+        return res.stdout.strip()
     except subprocess.CalledProcessError as e:
-        # print the hidden error coming from the GitHub CLI
-        print(f"GitHub CLI Error (Exit Code {e.returncode}):", file=sys.stderr)
-        print(f"STDOUT: {e.stdout}", file=sys.stderr)
-        print(f"STDERR: {e.stderr}", file=sys.stderr)
-        raise e
+        print(
+            f"Warning: gh {' '.join(args)} failed (exit {e.returncode}):\n"
+            f"STDERR: {e.stderr}\nSTDOUT: {e.stdout}",
+            file=sys.stderr,
+        )
+        return None
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        print(f"Warning: gh {' '.join(args)}: {e}", file=sys.stderr)
+        return None
 
+
+def _estimate_actions_minutes(repo):
+    """Fallback: approximate this month's Actions minutes as the sum of
+    (updated_at - run_started_at) over completed runs. Needs no billing
+    permissions. Close for a single-job workflow like pipeline.yml; it can
+    under/overcount versus real billing (per-job rounding, parallel jobs)."""
+    now = datetime.datetime.now(datetime.timezone.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+    output = _gh([
+        "api", f"/repos/{repo}/actions/runs", "--paginate", "--jq",
+        '.workflow_runs[] | select(.status == "completed") '
+        '| {started: .run_started_at, updated: .updated_at}',
+    ])
+    if output is None:
+        return None
+
+    total_seconds = 0.0
+    for line in output.splitlines():
+        if not line.strip():
+            continue
+        try:
+            entry = json.loads(line)
+            started = datetime.datetime.fromisoformat(entry["started"].replace("Z", "+00:00"))
+            updated = datetime.datetime.fromisoformat(entry["updated"].replace("Z", "+00:00"))
+        except (KeyError, ValueError, TypeError, json.JSONDecodeError):
+            continue
+        if started >= month_start:
+            total_seconds += max((updated - started).total_seconds(), 0)
+    return round(total_seconds / 60)
+
+
+def get_github_actions_minutes(repo):
+    """GitHub Actions minutes used this month.
+
+    Primary source: GitHub's billing usage summary for your user account
+    (GET /users/{username}/settings/billing/usage/summary). Notes on why
+    the original call failed:
+      * `user/billing/actions` is not a real route -- the path needs
+        `users/{username}/settings/...`, and gh's {placeholders} only cover
+        owner/repo/branch, so the username has to be looked up first.
+      * The old `.../billing/actions` endpoint (the one that returned
+        total_minutes_used / included_minutes) belongs to GitHub's legacy
+        billing platform. Accounts on the enhanced billing platform get
+        `usageItems` from the usage endpoints instead, with different fields.
+      * The token needs permission to read billing: fine-grained tokens need
+        the "Plan" user permission (read). gh's default login token is not
+        guaranteed to have that.
+
+    If the billing call fails, this falls back to an estimate from run
+    durations and says so in the display string, rather than reporting
+    a made-up number or crashing the whole script."""
+    login = _gh(["api", "user", "--jq", ".login"])
+    if not login:
+        return None, "unavailable (gh not authenticated -- run `gh auth login`)"
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    endpoint = f"users/{login}/settings/billing/usage/summary?year={now.year}&month={now.month}"
+    output = _gh(["api", endpoint])
+
+    if output:
+        try:
+            items = json.loads(output).get("usageItems", [])
+            actions = [
+                i for i in items
+                if str(i.get("product", "")).lower() == "actions" and i.get("unitType") == "minutes"
+            ]
+            gross = round(sum(i.get("grossQuantity", 0) for i in actions))
+            net = round(sum(i.get("netQuantity", 0) for i in actions))
+            return gross, f"{gross} min used this month ({net} billable)"
+        except (json.JSONDecodeError, AttributeError, TypeError) as e:
+            print(f"Billing response parse error: {e}", file=sys.stderr)
+
+    print("Billing endpoint unavailable -- falling back to run-duration estimate.", file=sys.stderr)
+    estimate = _estimate_actions_minutes(repo)
+    if estimate is None:
+        return None, "unavailable (billing API and runs API both failed -- see warnings above)"
+    return estimate, f"~{estimate} min this month (estimated from run durations)"
 
 
 def main():
@@ -271,7 +340,8 @@ def main():
     ar_total_mb, ar_display = get_artifact_registry_total(project_id)
     gcs_total_gb, gcs_display = get_gcs_total_size(project_id)
     cr_reqs, cr_vcpu, cr_display = get_cloud_run_metrics(project_id, cloud_run_service)
-    gh_mins, gh_display = get_github_actions_minutes()
+    gh_mins, gh_display = get_github_actions_minutes(repo)
+    log_gb, log_display = get_logging_usage(project_id)
 
     data = {
         "updated_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -289,12 +359,18 @@ def main():
             },
             "ci_cd": {
                 "minutes": gh_mins,
+                "free_tier_limit_minutes": int(os.environ.get("GH_ACTIONS_FREE_MINUTES", "2000")),
                 "display": gh_display,
             },
             "cloud_storage": {
                 "total_size_gb": gcs_total_gb,
                 "free_tier_limit_gb": 5,
                 "display": gcs_display,
+            },
+            "logging": {
+                "ingested_gb": log_gb,
+                "free_tier_limit_gb": 50,
+                "display": log_display,
             },
         },
     }
