@@ -230,7 +230,7 @@ def get_cloud_run_metrics(project_id, service_name):
     return reqs, vcpu_sec, f"~{reqs:,} requests & {vcpu_sec:,} vCPU-sec"
 
 
-def _gh(args, timeout=30):
+def _gh(args, timeout=30, quiet=False):
     """Run a gh CLI command (no shell) and return stdout, or None on failure.
     gh prints the API's error body to stdout and the HTTP status to stderr,
     so both are echoed on failure -- that's usually where the real reason is."""
@@ -240,14 +240,16 @@ def _gh(args, timeout=30):
         )
         return res.stdout.strip()
     except subprocess.CalledProcessError as e:
-        print(
-            f"Warning: gh {' '.join(args)} failed (exit {e.returncode}):\n"
-            f"STDERR: {e.stderr}\nSTDOUT: {e.stdout}",
-            file=sys.stderr,
-        )
+        if not quiet:
+            print(
+                f"Warning: gh {' '.join(args)} failed (exit {e.returncode}):\n"
+                f"STDERR: {e.stderr}\nSTDOUT: {e.stdout}",
+                file=sys.stderr,
+            )
         return None
     except (subprocess.TimeoutExpired, FileNotFoundError) as e:
-        print(f"Warning: gh {' '.join(args)}: {e}", file=sys.stderr)
+        if not quiet:
+            print(f"Warning: gh {' '.join(args)}: {e}", file=sys.stderr)
         return None
 
 
@@ -283,33 +285,62 @@ def _estimate_actions_minutes(repo):
 
 
 def get_github_actions_minutes(repo):
-    """GitHub Actions minutes used this month.
+    """GitHub Actions minutes used this month, as a dict for usage.json.
 
-    Primary source: GitHub's billing usage summary for your user account
-    (GET /users/{username}/settings/billing/usage/summary). Notes on why
-    the original call failed:
-      * `user/billing/actions` is not a real route -- the path needs
-        `users/{username}/settings/...`, and gh's {placeholders} only cover
-        owner/repo/branch, so the username has to be looked up first.
-      * The old `.../billing/actions` endpoint (the one that returned
-        total_minutes_used / included_minutes) belongs to GitHub's legacy
-        billing platform. Accounts on the enhanced billing platform get
-        `usageItems` from the usage endpoints instead, with different fields.
-      * The token needs permission to read billing: fine-grained tokens need
-        the "Plan" user permission (read). gh's default login token is not
-        guaranteed to have that.
+    GitHub has two billing platforms and each has its own endpoint, so this
+    tries them in order and records which one answered in "source":
 
-    If the billing call fails, this falls back to an estimate from run
-    durations and says so in the display string, rather than reporting
-    a made-up number or crashing the whole script."""
+      1. legacy    GET /users/{username}/settings/billing/actions
+                   Returns total_minutes_used and included_minutes (so the
+                   free-tier limit comes from GitHub, not a hardcoded guess).
+                   Works for accounts NOT on the enhanced billing platform.
+                   GitHub's docs still list it, but accounts that have moved
+                   to enhanced billing may get an error or redirect instead.
+      2. enhanced  GET /users/{username}/settings/billing/usage/summary
+                   Only exists for accounts on the enhanced billing platform
+                   (public preview). No included-minutes figure, so the limit
+                   falls back to GH_ACTIONS_FREE_MINUTES (default 2000).
+      3. estimate  Sum of run durations from the runs API. Needs no billing
+                   access, but is only an approximation.
+
+    Both billing endpoints need a token allowed to read billing: a classic
+    token with the `user` scope, or a fine-grained token with the "Plan"
+    user permission (read). gh's default login token may lack this.
+    A failure never raises -- worst case is minutes=None and an explanation.
+    """
+    default_limit = int(os.environ.get("GH_ACTIONS_FREE_MINUTES", "2000"))
+
     login = _gh(["api", "user", "--jq", ".login"])
     if not login:
-        return None, "unavailable (gh not authenticated -- run `gh auth login`)"
+        return {
+            "minutes": None,
+            "free_tier_limit_minutes": default_limit,
+            "source": None,
+            "display": "unavailable (gh not authenticated -- run `gh auth login`)",
+        }
 
+    # 1) legacy billing platform
+    output = _gh(["api", f"users/{login}/settings/billing/actions"], quiet=True)
+    if output:
+        try:
+            data = json.loads(output)
+            used = data.get("total_minutes_used")
+            if used is not None:
+                included = data.get("included_minutes") or default_limit
+                paid = data.get("total_paid_minutes_used", 0)
+                return {
+                    "minutes": used,
+                    "free_tier_limit_minutes": included,
+                    "source": "legacy-billing",
+                    "display": f"{used} / {included} min used this cycle ({paid} paid)",
+                }
+        except (json.JSONDecodeError, AttributeError, TypeError) as e:
+            print(f"Legacy billing parse error: {e}", file=sys.stderr)
+
+    # 2) enhanced billing platform
     now = datetime.datetime.now(datetime.timezone.utc)
     endpoint = f"users/{login}/settings/billing/usage/summary?year={now.year}&month={now.month}"
-    output = _gh(["api", endpoint])
-
+    output = _gh(["api", endpoint], quiet=True)
     if output:
         try:
             items = json.loads(output).get("usageItems", [])
@@ -319,15 +350,35 @@ def get_github_actions_minutes(repo):
             ]
             gross = round(sum(i.get("grossQuantity", 0) for i in actions))
             net = round(sum(i.get("netQuantity", 0) for i in actions))
-            return gross, f"{gross} min used this month ({net} billable)"
+            return {
+                "minutes": gross,
+                "free_tier_limit_minutes": default_limit,
+                "source": "enhanced-billing",
+                "display": f"{gross} min used this month ({net} billable)",
+            }
         except (json.JSONDecodeError, AttributeError, TypeError) as e:
-            print(f"Billing response parse error: {e}", file=sys.stderr)
+            print(f"Enhanced billing parse error: {e}", file=sys.stderr)
 
-    print("Billing endpoint unavailable -- falling back to run-duration estimate.", file=sys.stderr)
+    # 3) estimate from run durations
+    print(
+        "Neither billing endpoint answered (token lacks billing access, or "
+        "the account is on the other billing platform) -- estimating from run durations.",
+        file=sys.stderr,
+    )
     estimate = _estimate_actions_minutes(repo)
     if estimate is None:
-        return None, "unavailable (billing API and runs API both failed -- see warnings above)"
-    return estimate, f"~{estimate} min this month (estimated from run durations)"
+        return {
+            "minutes": None,
+            "free_tier_limit_minutes": default_limit,
+            "source": None,
+            "display": "unavailable (billing and runs APIs all failed -- see warnings above)",
+        }
+    return {
+        "minutes": estimate,
+        "free_tier_limit_minutes": default_limit,
+        "source": "estimate",
+        "display": f"~{estimate} min this month (estimated from run durations)",
+    }
 
 
 def main():
@@ -340,7 +391,7 @@ def main():
     ar_total_mb, ar_display = get_artifact_registry_total(project_id)
     gcs_total_gb, gcs_display = get_gcs_total_size(project_id)
     cr_reqs, cr_vcpu, cr_display = get_cloud_run_metrics(project_id, cloud_run_service)
-    gh_mins, gh_display = get_github_actions_minutes(repo)
+    ci_cd = get_github_actions_minutes(repo)
     log_gb, log_display = get_logging_usage(project_id)
 
     data = {
@@ -357,11 +408,7 @@ def main():
                 "free_tier_limit_mb": 500,
                 "display": ar_display,
             },
-            "ci_cd": {
-                "minutes": gh_mins,
-                "free_tier_limit_minutes": int(os.environ.get("GH_ACTIONS_FREE_MINUTES", "2000")),
-                "display": gh_display,
-            },
+            "ci_cd": ci_cd,
             "cloud_storage": {
                 "total_size_gb": gcs_total_gb,
                 "free_tier_limit_gb": 5,
