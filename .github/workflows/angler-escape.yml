@@ -25,13 +25,12 @@ jobs:
           service_account: github-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
       - name: tf_init
-        working-directory: ./terraform/angler-escape
-        run: terraform -chdir=terraform init
+        run: terraform -chdir=terraform/angler-escape/angler-escape init
 
       - name: tf_plan
         working-directory: ./terraform/angler-escape
         run: |
-          terraform -chdir=terraform plan -out=tfplan \
+          terraform -chdir=terraform/angler-escape plan -out=tfplan \
             -var="frontend_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/frontend:${{ github.run_id }}" \
             -var="backend_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/backend:${{ github.run_id }}" \
             -var="redis_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/redis:${{ github.run_id }}"
@@ -80,12 +79,12 @@ jobs:
       - name: tf_apply
         working-directory: ./terraform/angler-escape
         run: |
-          terraform -chdir=terraform apply -auto-approve \
+          terraform -chdir=terraform/angler-escape apply -auto-approve \
             -var="frontend_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/frontend:${{ github.run_id }}" \
             -var="backend_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/backend:${{ github.run_id }}" \
             -var="redis_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/redis:${{ github.run_id }}"
 
       - name: smoke_test
         run: |
-          URL=$(terraform -chdir=terraform output -raw service_url)
+          URL=$(terraform -chdir=terraform/angler-escape output -raw service_url)
           curl --fail --retry 5 --retry-delay 5 "$URL"
