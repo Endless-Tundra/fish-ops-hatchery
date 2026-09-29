@@ -1,35 +1,36 @@
-# --- Stage 1: Build, Compile, and Clean Modules ---
+# --- Stage 1: Build & Strip Types ---
 FROM node:24-alpine AS builder
 WORKDIR /app
 
 COPY package*.json ./
 
-# 1. Install EVERYTHING (including devDependencies like esbuild)
+# Install all packages (including devDependencies) to get our compilation tools
 RUN npm install -g npm@latest \
  && if [ -f package-lock.json ]; then npm ci; else npm install; fi
 
 COPY tsconfig.json server.ts ./
 
-# 2. Compile TypeScript into a single JavaScript file and strip out devDependencies
-RUN npx esbuild server.ts --bundle --platform=node --target=node24 --outfile=dist/server.js \
- && npm prune --omit=dev && rm -rf /root/.npm
+# Use a lightweight SWC command to instantly turn server.ts into pure JavaScript
+RUN npx @swc/cli server.ts -o dist/server.js
+
+# Clean up dev dependencies (wipes out typescript, tsx, swc tools, and the Go binary)
+RUN npm prune --omit=dev && rm -rf /root/.npm
 
 
-# --- Stage 2: Ultra-Lean Production Runtime ---
+# --- Stage 2: Clean Runtime ---
 FROM node:24-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy ONLY the pre-pruned production node_modules from Stage 1
+# Copy ONLY the clean production node_modules from Stage 1
 COPY --from=builder /app/node_modules ./node_modules
-# Copy the compiled production JavaScript code
+# Copy the clean compiled javascript file
 COPY --from=builder /app/dist ./dist
-# Copy package.json just for metadata/runtime reference if needed
 COPY package.json ./
 
 EXPOSE 3000
 
-# Runs instantly with 0 npm overhead and 0 Go-binary security vulnerabilities
+# Run pure native Node. Zero tools, zero wrappers, maximum speed, 0 vulnerabilities.
 CMD ["node", "dist/server.js"]
