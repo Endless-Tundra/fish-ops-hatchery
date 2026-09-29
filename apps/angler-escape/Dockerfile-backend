@@ -1,5 +1,6 @@
 # Production Dockerfile for Backend Container
 FROM node:24-alpine
+RUN apk update && apk upgrade --no-cache libcrypto3 libssl3 ssl_client
 
 WORKDIR /app
 COPY package*.json ./
