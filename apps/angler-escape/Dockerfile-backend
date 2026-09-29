@@ -1,18 +1,35 @@
-# Production Dockerfile for Backend Container
-FROM node:24-alpine
-
+# --- Stage 1: Build, Compile, and Clean Modules ---
+FROM node:24-alpine AS builder
 WORKDIR /app
+
 COPY package*.json ./
-RUN npm install -g npm@latest
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi && npm cache clean --force
+
+# 1. Install EVERYTHING (including devDependencies like esbuild)
+RUN npm install -g npm@latest \
+ && if [ -f package-lock.json ]; then npm ci; else npm install; fi
+
+COPY tsconfig.json server.ts ./
+
+# 2. Compile TypeScript into a single JavaScript file and strip out devDependencies
+RUN npx esbuild server.ts --bundle --platform=node --target=node24 --outfile=dist/server.js \
+ && npm prune --omit=dev && rm -rf /root/.npm
 
 
-COPY server.ts ./
-COPY tsconfig.json ./
+# --- Stage 2: Ultra-Lean Production Runtime ---
+FROM node:24-alpine AS runner
+WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
+# Copy ONLY the pre-pruned production node_modules from Stage 1
+COPY --from=builder /app/node_modules ./node_modules
+# Copy the compiled production JavaScript code
+COPY --from=builder /app/dist ./dist
+# Copy package.json just for metadata/runtime reference if needed
+COPY package.json ./
+
 EXPOSE 3000
 
-CMD ["npx", "tsx", "server.ts"]
+# Runs instantly with 0 npm overhead and 0 Go-binary security vulnerabilities
+CMD ["node", "dist/server.js"]
