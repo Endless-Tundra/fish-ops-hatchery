@@ -39,11 +39,11 @@ jobs:
 
       # ---- build all three images ----
       - name: build_frontend
-        run: docker build -f Dockerfile.frontend -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/frontend:${{ github.run_id }} .
+        run: docker build -f Dockerfile.frontend -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/frontend:${{ github.run_id }} apps/angler-fish/
       - name: build_backend
-        run: docker build -f Dockerfile.backend -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/backend:${{ github.run_id }} .
+        run: docker build -f Dockerfile.backend -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/backend:${{ github.run_id }} apps/angler-fish/
       - name: build_redis
-        run: docker build -f Dockerfile.db -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/redis:${{ github.run_id }} .
+        run: docker build -f Dockerfile.db -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/redis:${{ github.run_id }} apps/angler-fish/
 
       # ---- scan all three before any of them can be pushed ----
       # SHA-pin this in real use -- see the tutorial's note on why tags
