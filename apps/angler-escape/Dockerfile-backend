@@ -3,8 +3,9 @@ FROM node:24-alpine
 
 WORKDIR /app
 COPY package*.json ./
+RUN npm install -g npm@latest
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi && npm cache clean --force
-RUN npm ls brace-expansion ip-address tar || true
+
 
 COPY server.ts ./
 COPY tsconfig.json ./
