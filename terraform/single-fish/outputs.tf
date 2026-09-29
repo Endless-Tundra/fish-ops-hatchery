@@ -1,3 +1,3 @@
 output "service_url" {
-  value = google_cloud_run_v2_service.ephemeral.uri
+  value = google_cloud_run_v2_service.single-fish.uri
 }

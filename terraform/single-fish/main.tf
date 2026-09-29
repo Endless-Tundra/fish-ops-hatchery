@@ -1,5 +1,5 @@
-resource "google_cloud_run_v2_service" "ephemeral" {
-  name     = "fish-ops-ephemeral"
+resource "google_cloud_run_v2_service" "single-fish" {
+  name     = "fish-ops-single-fish"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
   deletion_protection = false
@@ -13,14 +13,14 @@ resource "google_cloud_run_v2_service" "ephemeral" {
     }
     scaling {
       min_instance_count = 0
-      max_instance_count = 2
+      max_instance_count = 1
     }
   }
 }
 
 resource "google_cloud_run_v2_service_iam_member" "public" {
-  location = google_cloud_run_v2_service.ephemeral.location
-  name     = google_cloud_run_v2_service.ephemeral.name
+  location = google_cloud_run_v2_service.single-fish.location
+  name     = google_cloud_run_v2_service.single-fish.name
   role     = "roles/run.invoker"
   member   = "allUsers"
 }

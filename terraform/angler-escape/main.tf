@@ -1,5 +1,5 @@
-resource "google_cloud_run_v2_service" "app" {
-  name                = "angler-escape"
+resource "google_cloud_run_v2_service" "angler-escape" {
+  name                = "fish-ops-angler-escape"
   location            = var.region
   deletion_protection = false
 
@@ -17,6 +17,9 @@ resource "google_cloud_run_v2_service" "app" {
       image = var.frontend_image
       ports {
         container_port = 80 # must match nginx's `listen 80` in the image
+      }
+      resources {
+        cpu_idle = true # same "CPU only during requests" behavior as the display service
       }
       depends_on = ["angler-backend"]
     }
@@ -38,6 +41,9 @@ resource "google_cloud_run_v2_service" "app" {
         name  = "DB_PORT"
         value = "6379"
       }
+      resources {
+        cpu_idle = true # same "CPU only during requests" behavior as the display service
+      }
       depends_on = ["redis"]
       startup_probe {
         http_get {
@@ -53,6 +59,7 @@ resource "google_cloud_run_v2_service" "app" {
       image = var.redis_image
       resources {
         limits = { memory = "128Mi" }
+        cpu_idle = true # same "CPU only during requests" behavior as the display service
       }
       startup_probe {
         tcp_socket {
@@ -64,8 +71,8 @@ resource "google_cloud_run_v2_service" "app" {
 }
 
 resource "google_cloud_run_v2_service_iam_member" "public" {
-  location = google_cloud_run_v2_service.app.location
-  name     = google_cloud_run_v2_service.app.name
+  location = google_cloud_run_v2_service.angler-escape.location
+  name     = google_cloud_run_v2_service.angler-escape.name
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
