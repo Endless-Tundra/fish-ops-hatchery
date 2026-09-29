@@ -1,4 +1,4 @@
-name: Build and Deploy Ephemeral Game Stack
+name: Angler-Escape
 
 on:
   workflow_dispatch:
