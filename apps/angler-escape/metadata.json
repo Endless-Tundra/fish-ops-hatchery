@@ -1,0 +1,7 @@
+{
+  "name": "Angler Escape",
+  "description": "A vintage NES-inspired pixel art maze game inspired by Megabug. Play as an anglerfish illuminating the abyss with your lantern, eating luminous plants while a shark stalks your trail of bubbles. Features demo attract mode, ephemeral high scores, and a 3-container architecture.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

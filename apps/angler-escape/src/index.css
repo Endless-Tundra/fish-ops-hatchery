@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@layer base {
+  body {
+    font-family: 'Press Start 2P', monospace, sans-serif;
+    background-color: #020617;
+    color: #f8fafc;
+    user-select: none;
+    -webkit-user-select: none;
+    overflow: hidden;
+  }
+}
+
+.font-nes {
+  font-family: 'Press Start 2P', monospace, sans-serif;
+}
+
+.font-vt {
+  font-family: 'VT323', monospace, sans-serif;
+}
+
+/* Pixel art rendering crispness */
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.9;
+    filter: drop-shadow(0 0 6px #00d2d3);
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 14px #00ffff);
+  }
+}
+
+.animate-lantern-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}

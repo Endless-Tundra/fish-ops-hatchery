@@ -1,0 +1,8 @@
+# Ephemeral Database Container
+# Uses lightweight Alpine image with Redis or in-memory key-value engine with no persistent storage mount
+FROM redis:7-alpine
+
+# Enforce pure in-memory ephemeral operation (disable RDB snapshots and AOF persistence)
+CMD ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+
+EXPOSE 6379
