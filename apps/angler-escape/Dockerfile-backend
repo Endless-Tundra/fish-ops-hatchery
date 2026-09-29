@@ -1,9 +1,9 @@
 # Production Dockerfile for Backend Container
-FROM node:26-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 COPY package*.json ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi && npm cache clean --force
 
 COPY server.ts ./
 COPY tsconfig.json ./
