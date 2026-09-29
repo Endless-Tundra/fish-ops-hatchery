@@ -10,6 +10,9 @@ RUN npm run build
 
 # Serve with lightweight Nginx
 FROM nginx:alpine AS runner
+## Updating libexpat to fix a vulnerability ##
+RUN apk update && apk add --no-cache --upgrade expat libexpat
+
 COPY --from=build /app/dist /usr/share/nginx/html
 
 # Custom nginx config to support client-side routing & proxying API to backend
