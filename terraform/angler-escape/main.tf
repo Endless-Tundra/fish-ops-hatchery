@@ -18,7 +18,7 @@ resource "google_cloud_run_v2_service" "app" {
       ports {
         container_port = 80 # must match nginx's `listen 80` in the image
       }
-      depends_on = ["angler-backend"
+      depends_on = ["angler-backend"]
     }
 
     # ---- sidecar: reachable only via localhost from other containers
