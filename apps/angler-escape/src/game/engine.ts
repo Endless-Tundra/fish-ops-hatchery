@@ -1,7 +1,7 @@
 // Core Game Engine for Angler Escape (Megabug inspired)
 import { Anglerfish, Shark, Bubble, Plant, Direction, GameState, HighScore } from '../types';
 import { CELL_SIZE, createMaze, isWalkable, bfsNextStep, MazeData } from './maze';
-import { GAME_TIME_LIMIT_SECONDS } from '../config';
+import { GAME_TIME_LIMIT_SECONDS } from '../../config';
 
 export interface GameEngineState {
   gameState: GameState;

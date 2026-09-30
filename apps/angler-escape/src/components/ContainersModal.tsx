@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Server, Layers, GitBranch, Clock, CheckCircle2 } from 'lucide-react';
-import { formatTimeLimitLabel, GAME_TIME_LIMIT_SECONDS } from '../config';
+import { formatTimeLimitLabel, GAME_TIME_LIMIT_SECONDS } from '../../config';
 
 interface ContainersModalProps {
   isOpen: boolean;
