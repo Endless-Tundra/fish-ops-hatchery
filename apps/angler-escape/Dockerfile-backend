@@ -3,10 +3,9 @@ FROM node:24-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
-COPY server.ts tsconfig.json ./
-COPY config.ts ./
+COPY server.ts tsconfig.json config.ts ./
 
-RUN npx esbuild server.ts --platform=node --target=node24 --format=esm --packages=external --outfile=dist/server.js
+RUN npx esbuild server.ts --bundle --platform=node --target=node24 --format=esm --packages=external --outfile=dist/server.js
 RUN npm prune --omit=dev && rm -rf /root/.npm
 
 # ---- Stage 2: Ultra-Secure Production Runtime ----
