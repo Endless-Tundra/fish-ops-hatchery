@@ -10,6 +10,6 @@ variable "backend_image" {
   type = string
 }
 
-variable "redis_image" {
+variable "db_image" {
   type = string
 }

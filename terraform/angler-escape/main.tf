@@ -44,7 +44,7 @@ resource "google_cloud_run_v2_service" "angler-escape" {
       resources {
         cpu_idle = true # same "CPU only during requests" behavior as the display service
       }
-      depends_on = ["redis"]
+      depends_on = ["angler-db"]
       startup_probe {
         http_get {
           port = 3000
@@ -55,8 +55,8 @@ resource "google_cloud_run_v2_service" "angler-escape" {
     # ---- sidecar: no depends_on, so this starts first, concurrently
     # with anything else that has no dependencies ----
     containers {
-      name  = "angler-redis"
-      image = var.redis_image
+      name  = "angler-db"
+      image = var.db_image
       resources {
         limits = { memory = "128Mi" }
         cpu_idle = true # same "CPU only during requests" behavior as the display service
