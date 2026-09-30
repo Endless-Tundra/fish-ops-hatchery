@@ -5,7 +5,7 @@ import { HUD } from './components/HUD';
 import { LeaderboardModal } from './components/LeaderboardModal';
 import { ContainersModal } from './components/ContainersModal';
 import { HighScore, Direction, GameState } from './types';
-import { GAME_TIME_LIMIT_SECONDS, formatTimeLimitLabel } from './config';
+import { GAME_TIME_LIMIT_SECONDS, formatTimeLimitLabel } from '../config';
 import { Play, RotateCcw, Trophy, Layers, Compass, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 
 export default function App() {
