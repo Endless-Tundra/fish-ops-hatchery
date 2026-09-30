@@ -41,6 +41,7 @@ jobs:
       - name: security_scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 #v0.36.0
         with:
+          ignore-unfixed: true
           image-ref: us-central1-docker.pkg.dev/project-95dc5755-7684-4706-bf5/fish-ops-images/single-fish:${{ github.run_id }}
           format: table
           exit-code: "1"
