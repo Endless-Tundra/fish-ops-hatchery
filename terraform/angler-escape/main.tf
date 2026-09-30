@@ -47,8 +47,13 @@ resource "google_cloud_run_v2_service" "angler-escape" {
       depends_on = ["angler-db"]
       startup_probe {
         http_get {
+          path = "/api/scores"
           port = 3000
         }
+        initial_delay_seconds = 2
+        period_seconds        = 5
+        timeout_seconds       = 3
+        failure_threshold     = 5
       }
     }
 
@@ -65,6 +70,10 @@ resource "google_cloud_run_v2_service" "angler-escape" {
         tcp_socket {
           port = 6379 # http_get can't be used here -- Redis doesn't speak HTTP
         }
+        initial_delay_seconds = 2
+        period_seconds        = 5
+        timeout_seconds       = 3
+        failure_threshold     = 5
       }
     }
   }
