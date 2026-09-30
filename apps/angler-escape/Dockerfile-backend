@@ -4,18 +4,22 @@ WORKDIR /app
 COPY package*.json ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 COPY server.ts tsconfig.json ./
+
 RUN npx esbuild server.ts \
       --bundle \
       --platform=node \
-      --format=esm \
+      --format=cjs \
       --external:vite \
-      --outfile=dist/server.mjs
+      --outfile=dist/server.js
 
 # ---- Stage 2: runtime -- Node only, nothing else ----
 FROM gcr.io/distroless/nodejs24-debian13 AS runtime
 WORKDIR /app
-COPY --from=builder /app/dist/server.mjs ./server.mjs
+
+COPY --from=builder /app/dist/server.js ./server.js
+
 ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000
-CMD ["server.mjs"]
+
+CMD ["server.js"]
