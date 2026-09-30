@@ -40,10 +40,10 @@ jobs:
       # # ---- build all three images ----
       # - name: build_frontend
       #   run: docker build -f apps/angler-escape/Dockerfile-frontend -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/frontend:${{ github.run_id }} apps/angler-escape/
-      - name: build_backend
-        run: docker build -f apps/angler-escape/Dockerfile-backend -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/backend:${{ github.run_id }} apps/angler-escape/
-      # - name: build_redis
-      #   run: docker build -f apps/angler-escape/Dockerfile-db -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/redis:${{ github.run_id }} apps/angler-escape/
+      # - name: build_backend
+      #   run: docker build -f apps/angler-escape/Dockerfile-backend -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/backend:${{ github.run_id }} apps/angler-escape/
+      - name: build_redis
+        run: docker build -f apps/angler-escape/Dockerfile-db -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/redis:${{ github.run_id }} apps/angler-escape/
 
       # ---- scan all three before any of them can be pushed ----
       # SHA-pin this in real use -- see the tutorial's note on why tags
@@ -55,22 +55,22 @@ jobs:
       #     image-ref: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/frontend:${{ github.run_id }}
       #     exit-code: "1"
       #     severity: CRITICAL,HIGH
-      - name: security_scan_backend
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 #v0.36.0
-        env:
-          TRIVY_DISABLE_VEX_NOTICE: "true"
-        with:
-          ignore-unfixed: true
-          image-ref: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/backend:${{ github.run_id }}
-          exit-code: "1"
-          severity: CRITICAL,HIGH
-      # - name: security_scan_redis
+      # - name: security_scan_backend
       #   uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 #v0.36.0
+      #   env:
+      #     TRIVY_DISABLE_VEX_NOTICE: "true"
       #   with:
       #     ignore-unfixed: true
-      #     image-ref: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/redis:${{ github.run_id }}
+      #     image-ref: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/backend:${{ github.run_id }}
       #     exit-code: "1"
       #     severity: CRITICAL,HIGH
+      - name: security_scan_redis
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 #v0.36.0
+        with:
+          ignore-unfixed: true
+          image-ref: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/angler-escape-images/redis:${{ github.run_id }}
+          exit-code: "1"
+          severity: CRITICAL,HIGH
 
       # # ---- only reachable if every scan passed ----
       # - name: push_frontend
