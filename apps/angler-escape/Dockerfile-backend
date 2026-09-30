@@ -1,36 +1,21 @@
-# --- Stage 1: Build & Strip Types ---
+# ---- Stage 1: compile server.ts into one bundled, dependency-free JS file ----
 FROM node:24-alpine AS builder
 WORKDIR /app
-
 COPY package*.json ./
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+COPY server.ts tsconfig.json ./
+RUN npx esbuild server.ts \
+      --bundle \
+      --platform=node \
+      --format=esm \
+      --external:vite \
+      --outfile=dist/server.mjs
 
-# Install all packages (including devDependencies) to get our compilation tools
-RUN npm install -g npm@latest \
- && if [ -f package-lock.json ]; then npm ci; else npm install; fi
-
-COPY tsconfig.json server.ts ./
-
-# Use a lightweight SWC command to instantly turn server.ts into pure JavaScript
-RUN npx @swc/cli server.ts -o dist/server.js
-
-# Clean up dev dependencies (wipes out typescript, tsx, swc tools, and the Go binary)
-RUN npm prune --omit=dev && rm -rf /root/.npm
-
-
-# --- Stage 2: Clean Runtime ---
-FROM node:24-alpine AS runner
+# ---- Stage 2: runtime -- Node only, nothing else ----
+FROM gcr.io/distroless/nodejs24-debian12 AS runtime
 WORKDIR /app
-
+COPY --from=builder /app/dist/server.mjs ./server.mjs
 ENV NODE_ENV=production
 ENV PORT=3000
-
-# Copy ONLY the clean production node_modules from Stage 1
-COPY --from=builder /app/node_modules ./node_modules
-# Copy the clean compiled javascript file
-COPY --from=builder /app/dist ./dist
-COPY package.json ./
-
 EXPOSE 3000
-
-# Run pure native Node. Zero tools, zero wrappers, maximum speed, 0 vulnerabilities.
-CMD ["node", "dist/server.js"]
+CMD ["server.mjs"]
