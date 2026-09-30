@@ -1,7 +1,7 @@
 // Core Game Engine for Angler Escape (Megabug inspired)
 import { Anglerfish, Shark, Bubble, Plant, Direction, GameState, HighScore } from '../types';
 import { CELL_SIZE, createMaze, isWalkable, bfsNextStep, MazeData } from './maze';
-import { soundEngine } from '../audio';
+import { GAME_TIME_LIMIT_SECONDS } from '../config';
 
 export interface GameEngineState {
   gameState: GameState;
@@ -36,10 +36,10 @@ export class GameEngine {
   ) {
     this.onStateChange = onStateChange;
     this.onGameOver = onGameOver;
-    this.state = this.initInitialState('TITLE');
+    this.state = this.initInitialState('DEMO');
   }
 
-  private initInitialState(gameState: GameState = 'TITLE'): GameEngineState {
+  private initInitialState(gameState: GameState = 'DEMO'): GameEngineState {
     const maze = createMaze(1);
     const startCellX = 1;
     const startCellY = 1;
@@ -87,8 +87,8 @@ export class GameEngine {
       lanternFlicker: 0,
       isCRTEnabled: true,
       demoMode: gameState === 'DEMO',
-      sessionRemainingSeconds: 600,
-      timeLimitSeconds: 600,
+      sessionRemainingSeconds: GAME_TIME_LIMIT_SECONDS,
+      timeLimitSeconds: GAME_TIME_LIMIT_SECONDS,
       lastBubbleDist: 0,
     };
   }
@@ -151,6 +151,22 @@ export class GameEngine {
     this.notify();
   }
 
+  public setGameStateForTest(newState: GameState) {
+    if (newState === 'TITLE' || newState === 'DEMO') {
+      this.startDemoMode();
+    } else if (newState === 'SESSION_EXPIRED') {
+      this.state.gameState = 'SESSION_EXPIRED';
+      this.state.demoMode = false;
+      this.state.sessionRemainingSeconds = 0;
+    } else if (newState === 'GAME_OVER') {
+      this.state.gameState = 'GAME_OVER';
+      this.state.demoMode = false;
+    } else if (newState === 'PLAYING') {
+      this.startNewGame();
+    }
+    this.notify();
+  }
+
   public setInputDirection(dir: Direction) {
     if (this.state.gameState === 'DEMO' || this.state.gameState === 'TITLE') {
       // Any user interaction during DEMO or TITLE starts the active game!
@@ -163,30 +179,22 @@ export class GameEngine {
     }
   }
 
-  public togglePause() {
-    if (this.state.gameState === 'PLAYING') {
-      this.state.gameState = 'PAUSED';
-    } else if (this.state.gameState === 'PAUSED') {
-      this.state.gameState = 'PLAYING';
-    }
-    this.notify();
-  }
-
-  public toggleCRT() {
-    this.state.isCRTEnabled = !this.state.isCRTEnabled;
-    this.notify();
-  }
-
-  public updateSessionTime(remainingSeconds: number) {
+  public updateSessionTime(remainingSeconds: number, totalLimitSeconds?: number) {
     this.state.sessionRemainingSeconds = remainingSeconds;
+    if (typeof totalLimitSeconds === 'number') {
+      this.state.timeLimitSeconds = totalLimitSeconds;
+    }
     if (remainingSeconds <= 0 && (this.state.gameState === 'PLAYING' || this.state.gameState === 'DEMO')) {
       this.handleSessionExpired();
     }
   }
 
   private handleSessionExpired() {
+    if (this.state.demoMode) {
+      this.startDemoMode();
+      return;
+    }
     this.state.gameState = 'SESSION_EXPIRED';
-    soundEngine.playGameOver();
     if (this.onGameOver) {
       this.onGameOver({
         id: `score-${Date.now()}`,
@@ -233,7 +241,6 @@ export class GameEngine {
     this.state.shark.targetGridY = sharkCellY;
     this.state.shark.speed = 82 + (nextLvl - 1) * 7;
 
-    soundEngine.playVictory();
     this.notify();
   }
 
@@ -297,12 +304,6 @@ export class GameEngine {
 
     // 5. Check Shark Attack Collision
     this.checkSharkCollision();
-
-    // 6. Audio tension heartbeat
-    const distToShark = Math.hypot(this.state.angler.x - this.state.shark.x, this.state.angler.y - this.state.shark.y);
-    const maxWarnDist = 320;
-    const ratio = distToShark / maxWarnDist;
-    soundEngine.updateHeartbeat(ratio);
 
     this.notify();
   }
@@ -506,12 +507,10 @@ export class GameEngine {
             // Collectible lantern: increases the size of the light radius!
             this.state.score += 300;
             this.state.lanternRadius = Math.min(320, this.state.lanternRadius + 45);
-            soundEngine.playSpecialEat();
           } else {
             // Regular plant: leaves behind a bubble trail that never disappears!
             this.state.score += 50;
             this.dropBubble(plant.x, plant.y);
-            soundEngine.playEat();
           }
         } else {
           uneatenCount++;
@@ -531,14 +530,18 @@ export class GameEngine {
 
     const dist = Math.hypot(angler.x - shark.x, angler.y - shark.y);
     if (dist < 22) {
+      // If fish dies in demo mode, restart demo immediately without opening hall of fame
+      if (this.state.demoMode) {
+        this.startDemoMode();
+        return;
+      }
+
       // Caught by shark!
-      soundEngine.playSharkAlert();
-      soundEngine.playGameOver();
       this.state.gameState = 'GAME_OVER';
 
       const finalRecord: HighScore = {
         id: `score-${Date.now()}`,
-        initials: this.state.demoMode ? 'BOT' : 'ANG',
+        initials: 'ANG',
         score: this.state.score,
         plantsEaten: this.state.plantsEaten,
         survivalSeconds: Math.floor(this.state.survivalSeconds),

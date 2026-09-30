@@ -2,17 +2,18 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import { GAME_TIME_LIMIT_SECONDS } from './src/config.ts';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = 3000;
 
 app.use(express.json());
 
 // Ephemeral Database Store
-// Stores session-bound high scores and tracks 10-minute game limit
+// Stores session-bound high scores and tracks configurable game limit
 interface ScoreEntry {
   id: string;
   initials: string;
@@ -31,9 +32,9 @@ const ephemeralDb = {
     { id: '4', initials: 'ANG', score: 5340, plantsEaten: 76, survivalSeconds: 190, depthLevel: 2, date: '2026-09-28' },
     { id: '5', initials: 'DEE', score: 3200, plantsEaten: 45, survivalSeconds: 130, depthLevel: 1, date: '2026-09-28' },
   ] as ScoreEntry[],
-  // 10-minute ephemeral session management
+  // Configurable ephemeral session management
   sessionStart: Date.now(),
-  maxSessionSeconds: 600, // 10 minutes
+  maxSessionSeconds: GAME_TIME_LIMIT_SECONDS,
 };
 
 // API: Get high scores
@@ -139,8 +140,8 @@ app.get('/api/containers', (_req, res) => {
   });
 });
 
-// API: Healthcheck
-app.get('/api/health', (_req, res) => {
+// API: Healthcheck / Startup probe
+app.get(['/api/health', '/health'], (_req, res) => {
   res.json({ status: 'ok', uptime: process.uptime() });
 });
 

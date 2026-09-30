@@ -1,14 +1,17 @@
 import React, { useRef, useEffect } from 'react';
 import { GameEngineState } from '../game/engine';
 import { CELL_SIZE } from '../game/maze';
+import { Direction } from '../types';
 
 interface GameCanvasProps {
   gameState: GameEngineState;
   onCanvasClick?: () => void;
+  onDirection?: (dir: Direction) => void;
 }
 
-export const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onCanvasClick }) => {
+export const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onCanvasClick, onDirection }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -441,17 +444,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onCanvasClick
     ctx.arc(lanternScreenX, lanternScreenY, radius, 0, Math.PI * 2, true);
     ctx.fill();
 
-    // Vintage Megabug Lens Ring / Bioluminescent Halo Border
-    ctx.strokeStyle = 'rgba(0, 210, 211, 0.4)';
-    ctx.lineWidth = 3;
+    // Vintage Lens Ring / Bioluminescent Halo Border
+    ctx.strokeStyle = 'rgba(52, 211, 153, 0.35)';
+    ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(lanternScreenX, lanternScreenY, radius, 0, Math.PI * 2);
     ctx.stroke();
 
-    ctx.strokeStyle = 'rgba(254, 202, 87, 0.2)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(lanternScreenX, lanternScreenY, radius - 4, 0, Math.PI * 2);
+    ctx.arc(lanternScreenX, lanternScreenY, radius - 3, 0, Math.PI * 2);
     ctx.stroke();
 
     // If Shark is in the dark outside the light, show its glowing red eyes cutting through the dark!
@@ -482,19 +485,31 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onCanvasClick
       // Retro flashing DEMO banner
       const isBlink = Math.floor(time / 450) % 2 === 0;
 
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
-      ctx.fillRect(0, 20, width, 48);
+      // Header Banner with Angler Escape & Megabug Homage above DEMO
+      ctx.fillStyle = 'rgba(9, 9, 11, 0.88)';
+      ctx.fillRect(0, 14, width, 84);
+      ctx.strokeStyle = '#27272a';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(0, 14, width, 84);
 
-      ctx.fillStyle = isBlink ? '#feca57' : '#ffffff';
-      ctx.font = '14px "Press Start 2P", monospace';
+      ctx.fillStyle = '#34d399';
+      ctx.font = '15px "Press Start 2P", monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('* ATTRACT DEMO MODE *', width / 2, 42);
+      ctx.fillText('ANGLER ESCAPE', width / 2, 38);
 
-      ctx.fillStyle = '#00d2d3';
-      ctx.font = '10px "Press Start 2P", monospace';
-      ctx.fillText('PRESS ANY KEY OR TAP TO PLAY', width / 2, 58);
+      ctx.fillStyle = '#a1a1aa';
+      ctx.font = '8.5px "Press Start 2P", monospace';
+      ctx.fillText('DEEP MAZE · MEGABUG HOMAGE', width / 2, 54);
 
-      // Helpful Fish Bug mechanics tutorial callouts
+      ctx.fillStyle = isBlink ? '#f97316' : '#ffffff';
+      ctx.font = '12px "Press Start 2P", monospace';
+      ctx.fillText('* DEMO *', width / 2, 74);
+
+      ctx.fillStyle = '#71717a';
+      ctx.font = '7.5px "Press Start 2P", monospace';
+      ctx.fillText('PRESS ANY KEY OR TAP TO PLAY', width / 2, 88);
+
+      // Helpful mechanics tutorial callouts
       const hintIdx = Math.floor((time / 3000) % 3);
       const hints = [
         'COLLECT LANTERNS TO EXPAND LIGHT RADIUS',
@@ -502,13 +517,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onCanvasClick
         'SHARK RELENTLESSLY TRACKS YOUR BUBBLE TRAIL',
       ];
 
-      ctx.fillStyle = 'rgba(2, 6, 23, 0.85)';
+      ctx.fillStyle = 'rgba(15, 17, 21, 0.9)';
       ctx.fillRect(width / 2 - 230, height - 52, 460, 36);
-      ctx.strokeStyle = '#00d2d3';
+      ctx.strokeStyle = '#3f3f46';
       ctx.lineWidth = 1;
       ctx.strokeRect(width / 2 - 230, height - 52, 460, 36);
 
-      ctx.fillStyle = '#f8fafc';
+      ctx.fillStyle = '#f4f4f5';
       ctx.font = '8.5px "Press Start 2P", monospace';
       ctx.fillText(hints[hintIdx], width / 2, height - 30);
 
@@ -516,10 +531,41 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ gameState, onCanvasClick
     }
   }, [gameState]);
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length > 0) {
+      touchStartRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+      };
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStartRef.current || !onDirection) return;
+    const touchEnd = e.changedTouches[0];
+    if (!touchEnd) return;
+
+    const dx = touchEnd.clientX - touchStartRef.current.x;
+    const dy = touchEnd.clientY - touchStartRef.current.y;
+    const absX = Math.abs(dx);
+    const absY = Math.abs(dy);
+
+    if (Math.max(absX, absY) > 15) {
+      if (absX > absY) {
+        onDirection(dx > 0 ? 'RIGHT' : 'LEFT');
+      } else {
+        onDirection(dy > 0 ? 'DOWN' : 'UP');
+      }
+    }
+    touchStartRef.current = null;
+  };
+
   return (
     <div
       onClick={onCanvasClick}
-      className="relative w-full max-w-[800px] aspect-[4/3] mx-auto bg-black rounded-lg overflow-hidden border-4 border-slate-800 shadow-2xl"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      className="relative w-full aspect-[4/3] bg-black rounded-b-lg overflow-hidden border-x-2 border-b-2 border-zinc-800 shadow-2xl cursor-pointer"
     >
       <canvas
         ref={canvasRef}
