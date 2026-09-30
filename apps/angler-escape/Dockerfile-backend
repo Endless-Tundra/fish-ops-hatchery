@@ -4,6 +4,8 @@ WORKDIR /app
 COPY package*.json ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
 COPY server.ts tsconfig.json ./
+COPY src/ ./src/config.ts
+
 RUN npx esbuild server.ts --platform=node --target=node24 --format=esm --packages=external --outfile=dist/server.js
 RUN npm prune --omit=dev && rm -rf /root/.npm
 
