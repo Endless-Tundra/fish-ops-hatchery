@@ -1,33 +1,24 @@
-# ---- Stage 1: Build & Compile TypeScript ----
+# ---- Stage 1: Build & Compile ----
 FROM node:24-alpine AS builder
 WORKDIR /app
-
 COPY package*.json ./
 RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
-
 COPY server.ts tsconfig.json ./
-
-# Compile server.ts to server.js WITHOUT bundling node_modules
-# --packages=external ensures dependencies stay safely inside node_modules
 RUN npx esbuild server.ts --platform=node --target=node24 --format=esm --packages=external --outfile=dist/server.js
-
-# Clean out all devDependencies and vulnerable Go binaries right here
 RUN npm prune --omit=dev && rm -rf /root/.npm
 
-
-# ---- Stage 2: Clean Production Runtime ----
-FROM node:24-alpine AS runtime
+# ---- Stage 2: Ultra-Secure Production Runtime ----
+FROM gcr.io/distroless/nodejs24-debian13 AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Copy the metadata, the clean production modules, and the compiled code
-COPY package.json ./
+# Copy the unbundled files and clean production modules over
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY package.json ./
 
 EXPOSE 3000
 
-# Run the unbundled compiled file natively using standard Node
-CMD ["node", "dist/server.js"]
+CMD ["dist/server.js"]
