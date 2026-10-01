@@ -11,6 +11,12 @@ jobs:
   deploy-and-expire:
     runs-on: ubuntu-latest
     name: Build 3 containers, deploy, then self-destruct after 10 minutes
+    env:
+      FRONTEND_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-frontend:${{ github.run_id }}
+      BACKEND_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-backend:${{ github.run_id }}
+      DB_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-db:${{ github.run_id }}
+      TRIVY_DISABLE_VEX_NOTICE: "true"
+
     steps:
       - name: checkout
         uses: actions/checkout@v4
@@ -24,71 +30,60 @@ jobs:
           workload_identity_provider: projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider
           service_account: github-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
+      - name: setup_trivy
+        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.70.0
+        with:
+          version: v0.70.0
+          cache: true
+
       - name: tf_init
         run: terraform -chdir=terraform/angler-escape init
 
       - name: tf_plan
         run: |
           terraform -chdir=terraform/angler-escape plan -out=tfplan \
-            -var="frontend_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-frontend:${{ github.run_id }}" \
-            -var="backend_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-backend:${{ github.run_id }}" \
-            -var="db_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-db:${{ github.run_id }}"
+            -var="frontend_image=$FRONTEND_IMAGE" \
+            -var="backend_image=$BACKEND_IMAGE" \
+            -var="db_image=$DB_IMAGE"
 
       - name: gcloud_auth_docker
         run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-      # # ---- build all three images ----
+      # # ---- Build and Scan all three images ----
       - name: build_frontend
-        run: docker build -f apps/angler-escape/Dockerfile-frontend -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-frontend:${{ github.run_id }} apps/angler-escape/
-      - name: build_backend
-        run: docker build -f apps/angler-escape/Dockerfile-backend -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-backend:${{ github.run_id }} apps/angler-escape/
-      - name: build_db
-        run: docker build -f apps/angler-escape/Dockerfile-db -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-db:${{ github.run_id }} apps/angler-escape/
+        run: docker build -f apps/angler-escape/Dockerfile-frontend -t $FRONTEND_IMAGE apps/angler-escape/
+      
+      - name: scan_frontend
+        run: trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed $FRONTEND_IMAGE
 
-      # ---- Vulnerability Scans ----
-      - name: security_scan_frontend
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 #v0.36.0
-        env:
-          TRIVY_DISABLE_VEX_NOTICE: "true"
-        with:
-          ignore-unfixed: true
-          image-ref: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-frontend:${{ github.run_id }}
-          exit-code: "1"
-          severity: CRITICAL,HIGH
-      - name: security_scan_backend
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 #v0.36.0
-        env:
-          TRIVY_DISABLE_VEX_NOTICE: "true"
-        with:
-          ignore-unfixed: true
-          image-ref: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-backend:${{ github.run_id }}
-          exit-code: "1"
-          severity: CRITICAL,HIGH
-      - name: security_scan_db
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 #v0.36.0
-        env:
-          TRIVY_DISABLE_VEX_NOTICE: "true"
-        with:
-          ignore-unfixed: true
-          image-ref: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-db:${{ github.run_id }}
-          exit-code: "1"
-          severity: CRITICAL,HIGH
+      - name: build_backend
+        run: docker build -f apps/angler-escape/Dockerfile-backend -t $BACKEND_IMAGE apps/angler-escape/
+      
+      - name: scan_backend
+        run: trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed $BACKEND_IMAGE
+
+      - name: build_db
+        run: docker build -f apps/angler-escape/Dockerfile-db -t $DB_IMAGE apps/angler-escape/
+
+      - name: scan_db
+        run: trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed $DB_IMAGE
+
 
       # # ---- Push to GCP ----
       - name: push_frontend
-        run: docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-frontend:${{ github.run_id }}
+        run: docker push $FRONTEND_IMAGE
       - name: push_backend
-        run: docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-backend:${{ github.run_id }}
+        run: docker push $BACKEND_IMAGE
       - name: push_db
-        run: docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-db:${{ github.run_id }}
+        run: docker push $DB_IMAGE
 
       ## Terraform Create Cloud Run Containers ##
       - name: tf_apply
         run: |
           terraform -chdir=terraform/angler-escape apply -auto-approve \
-            -var="frontend_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-frontend:${{ github.run_id }}" \
-            -var="backend_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-backend:${{ github.run_id }}" \
-            -var="db_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-db:${{ github.run_id }}"
+            -var="frontend_image=$FRONTEND_IMAGE" \
+            -var="backend_image=$BACKEND_IMAGE" \
+            -var="db_image=$DB_IMAGE"
 
       - name: smoke_test
         run: |
