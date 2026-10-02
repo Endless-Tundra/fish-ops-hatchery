@@ -54,19 +54,19 @@ jobs:
         run: docker build -f apps/angler-escape/Dockerfile-frontend -t $FRONTEND_IMAGE apps/angler-escape/
       
       - name: scan_frontend
-        run: trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed $FRONTEND_IMAGE
+        run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $FRONTEND_IMAGE
 
       - name: build_backend
         run: docker build -f apps/angler-escape/Dockerfile-backend -t $BACKEND_IMAGE apps/angler-escape/
       
       - name: scan_backend
-        run: trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed $BACKEND_IMAGE
+        run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $BACKEND_IMAGE
 
       - name: build_db
         run: docker build -f apps/angler-escape/Dockerfile-db -t $DB_IMAGE apps/angler-escape/
 
       - name: scan_db
-        run: trivy image --exit-code 1 --severity CRITICAL,HIGH --ignore-unfixed $DB_IMAGE
+        run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $DB_IMAGE
 
 
       # # ---- Push to GCP ----

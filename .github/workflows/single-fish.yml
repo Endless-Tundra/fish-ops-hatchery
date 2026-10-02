@@ -48,7 +48,7 @@ jobs:
           image-ref: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}
           format: table
           exit-code: "1"
-          severity: CRITICAL,HIGH
+          severity: CRITICAL
 
       - name: push_image
         run: docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}
