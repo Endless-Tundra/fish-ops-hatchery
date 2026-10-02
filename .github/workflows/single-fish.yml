@@ -2,6 +2,11 @@ name: Single-Fish
 
 on:
   workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy'
+        required: true
+        type: string
 
 permissions:
   id-token: write   # required for Workload Identity Federation
@@ -22,39 +27,36 @@ jobs:
       - name: auth
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: projects/782390899175/locations/global/workloadIdentityPools/github-pool/providers/github-provider
-          service_account: github-deployer@project-95dc5755-7684-4706-bf5.iam.gserviceaccount.com
+          workload_identity_provider: projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
       - name: tf_init
-        working-directory: ./terraform/single-fish
-        run: terraform -chdir=terraform init
+        run: terraform -chdir=terraform/single-fish init -backend-config="prefix=${{ inputs.service }}"
 
       - name: tf_plan
-        working-directory: ./terraform/single-fish
-        run: terraform -chdir=terraform plan -out=tfplan -var="container_image=us-central1-docker.pkg.dev/project-95dc5755-7684-4706-bf5/fish-ops-images/single-fish:${{ github.run_id }}"
+        run: terraform -chdir=terraform/single-fish plan -out=tfplan -var="container_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}"
 
       - name: build_image
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-          docker build -t us-central1-docker.pkg.dev/project-95dc5755-7684-4706-bf5/fish-ops-images/single-fish:${{ github.run_id }} apps/single-fish/
+          docker build -f apps/angler-escape/Dockerfile-${{ inputs.service }}" -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }} apps/single-fish/
 
       - name: security_scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 #v0.36.0
         with:
           ignore-unfixed: true
-          image-ref: us-central1-docker.pkg.dev/project-95dc5755-7684-4706-bf5/fish-ops-images/single-fish:${{ github.run_id }}
+          image-ref: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}
           format: table
           exit-code: "1"
           severity: CRITICAL,HIGH
 
       - name: push_image
-        run: docker push us-central1-docker.pkg.dev/project-95dc5755-7684-4706-bf5/fish-ops-images/single-fish:${{ github.run_id }}
+        run: docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}
 
       - name: tf_apply
-        working-directory: ./terraform/single-fish
         run: |
-          terraform -chdir=terraform apply -auto-approve \
-            -var="container_image=us-central1-docker.pkg.dev/project-95dc5755-7684-4706-bf5/fish-ops-images/single-fish:${{ github.run_id }}"
+          terraform -chdir=terraform/single-fish apply -auto-approve \
+            -var="container_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}"
 
       - name: smoke_test
         run: |
