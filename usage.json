@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-03T03:08:27.582567+00:00",
+  "updated_at": "2026-10-04T03:37:03.217352+00:00",
   "source": "live-gcp-usage-stats",
   "metrics": {
     "cloud_run": {
