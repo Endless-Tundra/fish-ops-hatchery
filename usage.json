@@ -1,11 +1,11 @@
 {
-  "updated_at": "2026-10-04T03:37:03.217352+00:00",
+  "updated_at": "2026-10-05T03:19:43.133498+00:00",
   "source": "live-gcp-usage-stats",
   "metrics": {
     "cloud_run": {
-      "requests": 482,
-      "vcpu_seconds": 1011,
-      "display": "~482 requests & 1,011 vCPU-sec"
+      "requests": 487,
+      "vcpu_seconds": 1075,
+      "display": "~487 requests & 1,075 vCPU-sec"
     },
     "artifact_registry": {
       "total_size_mb": 0.0,
