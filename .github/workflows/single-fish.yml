@@ -39,7 +39,7 @@ jobs:
       - name: build_image
         run: |
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-          docker build -f apps/angler-escape/Dockerfile-${{ inputs.service }} -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }} apps/single-fish/
+          docker build -f apps/single-fish/Dockerfile-${{ inputs.service }} -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }} apps/single-fish/
 
       - name: security_scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 #v0.36.0
