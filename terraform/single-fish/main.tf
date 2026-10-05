@@ -1,12 +1,15 @@
 resource "google_cloud_run_v2_service" "single-fish" {
-  name     = "fish-ops-single-fish"
+  name     = "fish-ops-single-fish-${var.service}"
   location = var.region
   ingress  = "INGRESS_TRAFFIC_ALL"
   deletion_protection = false
 
   template {
     containers {
-      image = var.container_image # passed in from the pipeline after it builds+pushes
+      image = var.container_image
+      ports {
+        container_port = 80
+      }
       resources {
         cpu_idle = true # same "CPU only during requests" behavior as the display service
       }

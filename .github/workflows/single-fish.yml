@@ -34,7 +34,9 @@ jobs:
         run: terraform -chdir=terraform/single-fish init -backend-config="prefix=${{ inputs.service }}"
 
       - name: tf_plan
-        run: terraform -chdir=terraform/single-fish plan -out=tfplan -var="container_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}"
+        run: terraform -chdir=terraform/single-fish plan -out=tfplan \
+        -var="container_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}" \
+        -var="service=${{ inputs.service }}"
 
       - name: build_image
         run: |
@@ -56,7 +58,8 @@ jobs:
       - name: tf_apply
         run: |
           terraform -chdir=terraform/single-fish apply -auto-approve \
-            -var="container_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}"
+            -var="container_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}" \
+            -var="service=${{ inputs.service }}"
 
       - name: smoke_test
         run: |

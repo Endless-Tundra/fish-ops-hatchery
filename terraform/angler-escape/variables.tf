@@ -13,3 +13,8 @@ variable "backend_image" {
 variable "db_image" {
   type = string
 }
+
+variable "service" {
+  type = string
+}
+
