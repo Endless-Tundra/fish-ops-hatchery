@@ -1,0 +1,32 @@
+name: Single-Fish Destroy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-and-expire:
+    runs-on: ubuntu-latest
+    steps:
+      ## Install Terraform 
+      - name: setup_terraform
+        uses: hashicorp/setup-terraform@v3
+
+      ## Checkout the Repo
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      - name: tf_init_nginx
+        run: terraform -chdir=terraform/single-fish init -backend-config="prefix=nginx"
+
+      - name: tf_destroy_nginx
+        run: terraform -chdir=terraform/single-fish destroy -auto-approve
