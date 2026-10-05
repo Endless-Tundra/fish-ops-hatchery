@@ -14,7 +14,3 @@ variable "db_image" {
   type = string
 }
 
-variable "service" {
-  type = string
-}
-

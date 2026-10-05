@@ -5,3 +5,7 @@ variable "region" {
 variable "container_image" {
   type = string
 }
+
+variable "service" {
+  type = string
+}
