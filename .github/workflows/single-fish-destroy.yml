@@ -29,4 +29,4 @@ jobs:
         run: terraform -chdir=terraform/single-fish init -backend-config="prefix=nginx"
 
       - name: tf_destroy_nginx
-        run: terraform -chdir=terraform/single-fish destroy -auto-approve
+        run: terraform -chdir=terraform/single-fish destroy -auto-approve -var="service=n" -var="container_image=n"
