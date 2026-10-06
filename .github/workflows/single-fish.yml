@@ -13,8 +13,9 @@ permissions:
   contents: read
 
 jobs:
-  run:
+  deploy:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       ## Install Terraform 
       - name: setup_terraform

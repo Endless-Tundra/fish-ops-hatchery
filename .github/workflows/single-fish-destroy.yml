@@ -8,8 +8,9 @@ permissions:
   contents: read
 
 jobs:
-  deploy-and-expire:
+  destroy:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       ## Install Terraform 
       - name: setup_terraform
