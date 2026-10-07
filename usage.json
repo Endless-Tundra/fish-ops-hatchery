@@ -1,5 +1,5 @@
 {
-  "updated_at": "2026-10-07T03:34:25.485011+00:00",
+  "updated_at": "2026-10-07T03:37:06.910811+00:00",
   "source": "live-gcp-usage-stats",
   "metrics": {
     "cloud_run": {
@@ -17,7 +17,7 @@
       "free_tier_limit_gb": 5,
       "display": "0.12 GB across all buckets"
     },
-    "logging": {
+    "logging_monitoring": {
       "ingested_gb": 0.0079,
       "free_tier_limit_gb": 50,
       "display": "0.0079 GiB ingested this month"
