@@ -35,7 +35,7 @@ jobs:
         run: terraform -chdir=terraform/single-fish init -backend-config="prefix=${{ inputs.service }}"
 
       - name: tf_plan
-        run: terraform -chdir=terraform/single-fish plan -out=tfplan -var="container_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}" -var="service=${{ inputs.service }}"
+        run: terraform -chdir=terraform/single-fish plan -out=tfplan -var="container_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}" -var="service=${{ inputs.service }}" -var="invoker_service_account=github-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
 
       - name: build_image
         run: |
@@ -56,9 +56,13 @@ jobs:
 
       - name: tf_apply
         run: |
-          terraform -chdir=terraform/single-fish apply -auto-approve -var="container_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}" -var="service=${{ inputs.service }}"
+          terraform -chdir=terraform/single-fish apply -auto-approve -var="container_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}" -var="service=${{ inputs.service }}" -var="invoker_service_account=github-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
 
       - name: smoke_test
         run: |
           URL=$(terraform -chdir=terraform/single-fish output -raw service_url)
-          curl --fail --retry 5 --retry-delay 5 "$URL"
+          TOKEN=$(gcloud auth print-identity-token \
+            --impersonate-service-account="github-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --audiences="$URL")
+          curl --fail --retry 5 --retry-delay 5 --retry-all-errors \
+            -H "Authorization: Bearer $TOKEN" "$URL"

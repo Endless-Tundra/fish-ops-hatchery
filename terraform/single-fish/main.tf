@@ -25,5 +25,5 @@ resource "google_cloud_run_v2_service_iam_member" "public" {
   location = google_cloud_run_v2_service.single-fish.location
   name     = google_cloud_run_v2_service.single-fish.name
   role     = "roles/run.invoker"
-  member   = "allUsers"
+  member   = "serviceAccount:${var.invoker_service_account}"
 }
