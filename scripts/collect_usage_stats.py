@@ -237,7 +237,7 @@ def main():
                 "free_tier_limit_gb": 5,
                 "display": gcs_display,
             },
-            "logging": {
+            "logging_monitoring": {
                 "ingested_gb": log_gb,
                 "free_tier_limit_gb": 50,
                 "display": log_display,
