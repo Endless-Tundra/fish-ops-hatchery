@@ -11,7 +11,6 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    name: Build 3 containers, deploy, then self-destruct after 10 minutes
     env:
       FRONTEND_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-frontend:${{ github.run_id }}
       BACKEND_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-backend:${{ github.run_id }}
@@ -53,18 +52,18 @@ jobs:
       # # ---- Build and Scan all three images ----
       - name: build_frontend
         run: docker build -f apps/angler-escape/Dockerfile-frontend -t $FRONTEND_IMAGE apps/angler-escape/
-      
-      - name: scan_frontend
-        run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $FRONTEND_IMAGE
 
       - name: build_backend
         run: docker build -f apps/angler-escape/Dockerfile-backend -t $BACKEND_IMAGE apps/angler-escape/
-      
-      - name: scan_backend
-        run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $BACKEND_IMAGE
 
       - name: build_db
         run: docker build -f apps/angler-escape/Dockerfile-db -t $DB_IMAGE apps/angler-escape/
+
+      - name: scan_frontend
+        run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $FRONTEND_IMAGE
+
+      - name: scan_backend
+        run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $BACKEND_IMAGE
 
       - name: scan_db
         run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $DB_IMAGE
