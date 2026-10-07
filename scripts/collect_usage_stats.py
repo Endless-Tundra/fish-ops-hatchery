@@ -38,23 +38,27 @@ def run_cmd(cmd, timeout=30):
 
 
 def get_artifact_registry_total(project_id):
-    """Sum sizeBytes across EVERY Artifact Registry repository in the
-    project. This uses Google's own server-computed total (already
-    deduplicated across shared image layers) rather than summing
-    individual image listings by hand, which risks double-counting
-    layers shared between builds of the same image."""
-    output = run_cmd(f"gcloud artifacts repositories list --project={project_id} --format='value(sizeBytes)'")
+    """Sum sizeBytes across every Artifact Registry repository in the
+    project. Returns (None, message) on any failure so a failed query is
+    never reported as a real 0."""
+    output = run_cmd(f"gcloud artifacts repositories list --project={project_id} --format=json")
     if output is None:
         return None, "unavailable (check gcloud auth / permissions)"
 
-    total_bytes = 0
-    repo_count = 0
-    for line in output.splitlines():
-        line = line.strip()
-        if line.isdigit():
-            total_bytes += int(line)
-            repo_count += 1
+    try:
+        repos = json.loads(output or "[]")
+    except json.JSONDecodeError:
+        return None, "unavailable (could not parse gcloud output)"
 
+    repo_count = len(repos)
+    if repo_count == 0:
+        return 0.0, "0 MB across 0 repositories"
+
+    sizes = [r.get("sizeBytes") for r in repos]
+    if any(s is None for s in sizes):
+        return None, "unavailable (repo sizes not reported)"
+
+    total_bytes = sum(int(s) for s in sizes)
     total_mb = round(total_bytes / (1024 * 1024), 1)
     label = "repository" if repo_count == 1 else "repositories"
     return total_mb, f"{total_mb} MB across {repo_count} {label}"
