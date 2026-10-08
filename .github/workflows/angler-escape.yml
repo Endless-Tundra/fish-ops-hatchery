@@ -93,3 +93,48 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.DEPLOY_CALLBACK_TOKEN }}" \
             -H "Content-Type: application/json" \
             -d "{\"service_url\": \"$URL\"}"
+
+      - name: cleanup_old_images_frontend
+        if: success()
+        env:
+          PACKAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-frontend
+          KEEP: "1"
+        run: |
+          gcloud artifacts docker images list "$PACKAGE" \
+            --sort-by=~CREATE_TIME \
+            --format='value(version)' \
+          | tail -n +$((KEEP + 1)) \
+          | while read -r DIGEST; do
+              echo "Deleting $PACKAGE@$DIGEST"
+              gcloud artifacts docker images delete "$PACKAGE@$DIGEST" --delete-tags --quiet
+            done
+
+      - name: cleanup_old_images_backend
+        if: success()
+        env:
+          PACKAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-backend
+          KEEP: "1"
+        run: |
+          gcloud artifacts docker images list "$PACKAGE" \
+            --sort-by=~CREATE_TIME \
+            --format='value(version)' \
+          | tail -n +$((KEEP + 1)) \
+          | while read -r DIGEST; do
+              echo "Deleting $PACKAGE@$DIGEST"
+              gcloud artifacts docker images delete "$PACKAGE@$DIGEST" --delete-tags --quiet
+            done
+
+      - name: cleanup_old_images_db
+        if: success()
+        env:
+          PACKAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-db
+          KEEP: "1"
+        run: |
+          gcloud artifacts docker images list "$PACKAGE" \
+            --sort-by=~CREATE_TIME \
+            --format='value(version)' \
+          | tail -n +$((KEEP + 1)) \
+          | while read -r DIGEST; do
+              echo "Deleting $PACKAGE@$DIGEST"
+              gcloud artifacts docker images delete "$PACKAGE@$DIGEST" --delete-tags --quiet
+            done

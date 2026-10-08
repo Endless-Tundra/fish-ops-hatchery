@@ -66,3 +66,18 @@ jobs:
             --audiences="$URL")
           curl --fail --retry 5 --retry-delay 5 --retry-all-errors \
             -H "Authorization: Bearer $TOKEN" "$URL"
+
+            - name: cleanup_old_images
+        if: success()
+        env:
+          PACKAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}
+          KEEP: "2"
+        run: |
+          gcloud artifacts docker images list "$PACKAGE" \
+            --sort-by=~CREATE_TIME \
+            --format='value(version)' \
+          | tail -n +$((KEEP + 1)) \
+          | while read -r DIGEST; do
+              echo "Deleting $PACKAGE@$DIGEST"
+              gcloud artifacts docker images delete "$PACKAGE@$DIGEST" --delete-tags --quiet
+            done
