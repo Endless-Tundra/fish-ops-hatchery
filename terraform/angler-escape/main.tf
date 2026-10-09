@@ -16,7 +16,7 @@ resource "google_cloud_run_v2_service" "angler-escape" {
       name  = "angler-frontend"
       image = var.frontend_image
       ports {
-        container_port = 80 # must match nginx's `listen 80` in the image
+        container_port = 8080
       }
       resources {
         cpu_idle = true # same "CPU only during requests" behavior as the display service

@@ -2,6 +2,10 @@
 # Uses lightweight Alpine image with Redis or in-memory key-value engine with no persistent storage mount
 FROM redis:7-alpine
 
+# Run as the unprivileged "redis" user that ships with the image.
+# (The entrypoint only drops privileges itself when started as root.)
+USER redis
+
 # Enforce pure in-memory ephemeral operation (disable RDB snapshots and AOF persistence)
 CMD ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
 

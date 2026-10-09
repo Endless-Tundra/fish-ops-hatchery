@@ -13,7 +13,8 @@ RUN npx esbuild server.ts --bundle --platform=node --target=node24 --format=esm 
 RUN npm prune --omit=dev && rm -rf /root/.npm
 
 # ---- Stage 2: Ultra-Secure Production Runtime ----
-FROM gcr.io/distroless/nodejs24-debian13 AS runtime
+# The :nonroot variant of distroless defaults to UID/GID 65532 instead of root
+FROM gcr.io/distroless/nodejs24-debian13:nonroot AS runtime
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -23,6 +24,9 @@ ENV PORT=3000
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY package.json ./
+
+# Numeric UID so orchestrators (e.g. Kubernetes runAsNonRoot) can verify it
+USER 65532:65532
 
 EXPOSE 3000
 
