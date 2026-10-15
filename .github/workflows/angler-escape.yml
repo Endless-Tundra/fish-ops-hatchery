@@ -7,9 +7,6 @@ permissions:
   id-token: write
   contents: read
 
-env:
-  REGISTRY: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images
-
 jobs:
   build-scan-push:
     runs-on: ubuntu-latest
@@ -19,7 +16,7 @@ jobs:
       matrix:
         component: [frontend, backend, db]
     env:
-      IMAGE: $REGISTRY/angler-escape-${{ matrix.component }}:${{ github.run_id }}
+      IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-${{ matrix.component }}:${{ github.run_id }}
       TRIVY_DISABLE_VEX_NOTICE: "true"
 
     steps:
@@ -55,9 +52,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      FRONTEND_IMAGE: $REGISTRY/angler-escape-frontend:${{ github.run_id }}
-      BACKEND_IMAGE: $REGISTRY/angler-escape-backend:${{ github.run_id }}
-      DB_IMAGE: $REGISTRY/angler-escape-db:${{ github.run_id }}
+      FRONTEND_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-frontend:${{ github.run_id }}
+      BACKEND_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-backend:${{ github.run_id }}
+      DB_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-db:${{ github.run_id }}
 
     steps:
       - name: checkout
@@ -97,7 +94,7 @@ jobs:
           KEEP: "1"
         run: |
           for COMPONENT in frontend backend db; do
-            PACKAGE="$REGISTRY/angler-escape-$COMPONENT"
+            PACKAGE="us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-$COMPONENT"
             gcloud artifacts docker images list "$PACKAGE" \
               --sort-by=~CREATE_TIME \
               --format='value(version)' \
