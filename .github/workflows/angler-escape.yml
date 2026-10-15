@@ -38,8 +38,19 @@ jobs:
       - name: gcloud_auth_docker
         run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
+      - name: setup_buildx
+        uses: docker/setup-buildx-action@v3
+        
       - name: build_${{ matrix.component }}
-        run: docker build -f apps/angler-escape/Dockerfile-${{ matrix.component }} -t $IMAGE apps/angler-escape/
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/angler-escape/
+          file: apps/angler-escape/Dockerfile-${{ matrix.component }}
+          tags: ${{ env.IMAGE }}
+          load: true
+          push: false
+          cache-from: type=gha,scope=${{ matrix.component }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.component }}
 
       - name: scan_${{ matrix.component }}
         run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $IMAGE
