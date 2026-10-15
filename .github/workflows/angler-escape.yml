@@ -34,6 +34,19 @@ jobs:
         with:
           version: v0.70.0
           cache: true
+      
+      ## Updates and stores the Trivy Cache once a day ##
+      - name: trivy_date
+        id: trivy_date
+        run: echo "day=$(date +%F)" >> "$GITHUB_OUTPUT"
+
+      - name: trivy_db_cache
+        id: trivy_db
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ steps.trivy_date.outputs.day }}
+          restore-keys: trivy-db-
 
       - name: gcloud_auth_docker
         run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
@@ -53,7 +66,9 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.component }}
 
       - name: scan_${{ matrix.component }}
-        run: trivy image --exit-code 1 --severity CRITICAL --skip-db-update --ignore-unfixed $IMAGE
+        env:
+          TRIVY_SKIP_DB_UPDATE: ${{ steps.trivy_db.outputs.cache-hit == 'true' }}
+        run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $IMAGE
 
       - name: push_${{ matrix.component }}
         run: docker push $IMAGE
