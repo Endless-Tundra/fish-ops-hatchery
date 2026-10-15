@@ -7,15 +7,57 @@ permissions:
   id-token: write
   contents: read
 
+env:
+  REGISTRY: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images
+
 jobs:
+  build-scan-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    strategy:
+      fail-fast: true
+      matrix:
+        component: [frontend, backend, db]
+    env:
+      IMAGE: $REGISTRY/angler-escape-${{ matrix.component }}:${{ github.run_id }}
+      TRIVY_DISABLE_VEX_NOTICE: "true"
+
+    steps:
+      - name: checkout
+        uses: actions/checkout@v4
+
+      - name: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      - name: setup_trivy
+        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.70.0
+        with:
+          version: v0.70.0
+          cache: true
+
+      - name: gcloud_auth_docker
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+      - name: build_${{ matrix.component }}
+        run: docker build -f apps/angler-escape/Dockerfile-${{ matrix.component }} -t $IMAGE apps/angler-escape/
+
+      - name: scan_${{ matrix.component }}
+        run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $IMAGE
+
+      - name: push_${{ matrix.component }}
+        run: docker push $IMAGE
+
   deploy:
+    needs: build-scan-push
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      FRONTEND_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-frontend:${{ github.run_id }}
-      BACKEND_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-backend:${{ github.run_id }}
-      DB_IMAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-db:${{ github.run_id }}
-      TRIVY_DISABLE_VEX_NOTICE: "true"
+      FRONTEND_IMAGE: $REGISTRY/angler-escape-frontend:${{ github.run_id }}
+      BACKEND_IMAGE: $REGISTRY/angler-escape-backend:${{ github.run_id }}
+      DB_IMAGE: $REGISTRY/angler-escape-db:${{ github.run_id }}
 
     steps:
       - name: checkout
@@ -30,54 +72,9 @@ jobs:
           workload_identity_provider: projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider
           service_account: github-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
-      - name: setup_trivy
-        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.70.0
-        with:
-          version: v0.70.0
-          cache: true
-
       - name: tf_init
         run: terraform -chdir=terraform/angler-escape init
 
-      - name: tf_plan
-        run: |
-          terraform -chdir=terraform/angler-escape plan -out=tfplan \
-            -var="frontend_image=$FRONTEND_IMAGE" \
-            -var="backend_image=$BACKEND_IMAGE" \
-            -var="db_image=$DB_IMAGE"
-
-      - name: gcloud_auth_docker
-        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-
-      # # ---- Build and Scan all three images ----
-      - name: build_frontend
-        run: docker build -f apps/angler-escape/Dockerfile-frontend -t $FRONTEND_IMAGE apps/angler-escape/
-
-      - name: build_backend
-        run: docker build -f apps/angler-escape/Dockerfile-backend -t $BACKEND_IMAGE apps/angler-escape/
-
-      - name: build_db
-        run: docker build -f apps/angler-escape/Dockerfile-db -t $DB_IMAGE apps/angler-escape/
-
-      - name: scan_frontend
-        run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $FRONTEND_IMAGE
-
-      - name: scan_backend
-        run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $BACKEND_IMAGE
-
-      - name: scan_db
-        run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $DB_IMAGE
-
-
-      # # ---- Push to GCP ----
-      - name: push_frontend
-        run: docker push $FRONTEND_IMAGE
-      - name: push_backend
-        run: docker push $BACKEND_IMAGE
-      - name: push_db
-        run: docker push $DB_IMAGE
-
-      ## Terraform Create Cloud Run Containers ##
       - name: tf_apply
         run: |
           terraform -chdir=terraform/angler-escape apply -auto-approve \
@@ -94,47 +91,19 @@ jobs:
             -H "Content-Type: application/json" \
             -d "{\"service_url\": \"$URL\"}"
 
-      - name: cleanup_old_images_frontend
+      - name: cleanup_old_images
         if: success()
         env:
-          PACKAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-frontend
           KEEP: "1"
         run: |
-          gcloud artifacts docker images list "$PACKAGE" \
-            --sort-by=~CREATE_TIME \
-            --format='value(version)' \
-          | tail -n +$((KEEP + 1)) \
-          | while read -r DIGEST; do
-              echo "Deleting $PACKAGE@$DIGEST"
-              gcloud artifacts docker images delete "$PACKAGE@$DIGEST" --delete-tags --quiet
-            done
-
-      - name: cleanup_old_images_backend
-        if: success()
-        env:
-          PACKAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-backend
-          KEEP: "1"
-        run: |
-          gcloud artifacts docker images list "$PACKAGE" \
-            --sort-by=~CREATE_TIME \
-            --format='value(version)' \
-          | tail -n +$((KEEP + 1)) \
-          | while read -r DIGEST; do
-              echo "Deleting $PACKAGE@$DIGEST"
-              gcloud artifacts docker images delete "$PACKAGE@$DIGEST" --delete-tags --quiet
-            done
-
-      - name: cleanup_old_images_db
-        if: success()
-        env:
-          PACKAGE: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/angler-escape-db
-          KEEP: "1"
-        run: |
-          gcloud artifacts docker images list "$PACKAGE" \
-            --sort-by=~CREATE_TIME \
-            --format='value(version)' \
-          | tail -n +$((KEEP + 1)) \
-          | while read -r DIGEST; do
-              echo "Deleting $PACKAGE@$DIGEST"
-              gcloud artifacts docker images delete "$PACKAGE@$DIGEST" --delete-tags --quiet
-            done
+          for COMPONENT in frontend backend db; do
+            PACKAGE="$REGISTRY/angler-escape-$COMPONENT"
+            gcloud artifacts docker images list "$PACKAGE" \
+              --sort-by=~CREATE_TIME \
+              --format='value(version)' \
+            | tail -n +$((KEEP + 1)) \
+            | while read -r DIGEST; do
+                echo "Deleting $PACKAGE@$DIGEST"
+                gcloud artifacts docker images delete "$PACKAGE@$DIGEST" --delete-tags --quiet
+              done
+          done
