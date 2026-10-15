@@ -17,31 +17,40 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      ## Install Terraform 
-      - name: setup_terraform
-        uses: hashicorp/setup-terraform@v3
-
       ## Checkout the Repo
-      - name: checkout
+      - name: checkout_repo
         uses: actions/checkout@v4
 
-      - name: auth
+      ## Auth for GCP ##
+      - name: gcp_auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: projects/${{ secrets.GCP_PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github-pool/providers/github-provider
           service_account: github-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
-      - name: tf_init
-        run: terraform -chdir=terraform/single-fish init -backend-config="prefix=${{ inputs.service }}"
+      - name: gcp_auth_docker
+        run: gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
-      - name: tf_plan
-        run: terraform -chdir=terraform/single-fish plan -out=tfplan -var="container_image=us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}" -var="service=${{ inputs.service }}" -var="invoker_service_account=github-deployer@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com"
+      ## Install Terraform and Buildx
+      - name: install_terraform
+        uses: hashicorp/setup-terraform@v3
 
+      - name: install_buildx
+        uses: docker/setup-buildx-action@v3
+
+      ## Build Image ##
       - name: build_image
-        run: |
-          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-          docker build -f apps/single-fish/Dockerfile-${{ inputs.service }} -t us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }} apps/single-fish/
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/single-fish/
+          file: apps/single-fish/Dockerfile-${{ inputs.service }}
+          tags: us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}
+          load: true
+          push: false
+          cache-from: type=gha,scope=${{ inputs.service }}
+          cache-to: type=gha,mode=max,scope=${{ inputs.service }}
 
+      ## CVE Scan with Trivy ##
       - name: security_scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 #v0.36.0
         with:
@@ -51,8 +60,13 @@ jobs:
           exit-code: "1"
           severity: CRITICAL
 
+      ## Push to GCP ##
       - name: push_image
         run: docker push us-central1-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/fish-ops-images/${{ inputs.service }}:${{ github.run_id }}
+
+      ## Terraform Run ##
+      - name: tf_init
+        run: terraform -chdir=terraform/single-fish init -backend-config="prefix=${{ inputs.service }}"
 
       - name: tf_apply
         run: |
