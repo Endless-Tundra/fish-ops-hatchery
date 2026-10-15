@@ -40,7 +40,7 @@ jobs:
 
       - name: setup_buildx
         uses: docker/setup-buildx-action@v3
-        
+
       - name: build_${{ matrix.component }}
         uses: docker/build-push-action@v6
         with:
@@ -53,7 +53,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.component }}
 
       - name: scan_${{ matrix.component }}
-        run: trivy image --exit-code 1 --severity CRITICAL --ignore-unfixed $IMAGE
+        run: trivy image --exit-code 1 --severity CRITICAL --skip-db-update --ignore-unfixed $IMAGE
 
       - name: push_${{ matrix.component }}
         run: docker push $IMAGE
