@@ -113,10 +113,11 @@ jobs:
         run: |
           URL=$(terraform -chdir=terraform/angler-escape output -raw service_url)
           curl --fail --retry 5 --retry-delay 5 "$URL"
-          curl -X POST "https://fish-ops-site-782390899175.us-central1.run.app/api/deploy/${{ github.run_id }}/result" \
-            -H "Authorization: Bearer ${{ secrets.DEPLOY_CALLBACK_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"service_url\": \"$URL\"}"
+          ## This part is used to send the service URL back to the site but it isn't needed now that I am using a hardcoded domain name ##
+          # curl -X POST "https://fish-ops-site-782390899175.us-central1.run.app/api/deploy/${{ github.run_id }}/result" \
+          #   -H "Authorization: Bearer ${{ secrets.DEPLOY_CALLBACK_TOKEN }}" \
+          #   -H "Content-Type: application/json" \
+          #   -d "{\"service_url\": \"$URL\"}"
 
       - name: cleanup_old_images
         if: success()

@@ -1,7 +1,7 @@
 resource "google_cloud_run_v2_service" "single-fish" {
   name     = "fish-ops-single-fish-${var.service}"
   location = var.region
-  ingress  = "INGRESS_TRAFFIC_ALL"
+  ingress  = "internal"
   deletion_protection = false
 
   template {
