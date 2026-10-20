@@ -74,7 +74,7 @@ jobs:
 
       - name: smoke_test
         run: |
-          SERVICE=$(terraform -chdir=terraform/single-fish output -raw service_name)
+          SERVICE="fish-ops-single-fish-${{ inputs.service }}"
           for i in $(seq 1 4); do
             STATUS=$(gcloud run services describe "$SERVICE" \
               --region "us-central1" \
