@@ -13,6 +13,15 @@ resource "google_cloud_run_v2_service" "single-fish" {
       resources {
         cpu_idle = true # same "CPU only during requests" behavior as the display service
       }
+      startup_probe {
+        tcp_socket {
+          port = 80
+        }
+        initial_delay_seconds = 2
+        period_seconds        = 5
+        timeout_seconds       = 2
+        failure_threshold     = 10
+      }
     }
     scaling {
       min_instance_count = 0
