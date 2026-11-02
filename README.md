@@ -80,7 +80,7 @@ Triggered on demand for individual container organisms. Accepts the target servi
 
 ### 2. Angler Escape Ecosystem Pipeline (`.github/workflows/angler-escape.yml`)
 
-Deploys a complete 3-tier playable microservice game ([anglerescape.fish-ops.com](https://anglerescape.fish-ops.com/)).
+Deploys a complete 3-tier playable microservice game called Angler Escape).
 
 - **Trigger:** `workflow_dispatch`
 - **Jobs:**
