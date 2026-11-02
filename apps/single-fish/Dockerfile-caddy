@@ -1,2 +1,6 @@
 FROM caddy:2.11.7-alpine
+
+## Updating to fix a vulnerabilities ##
+RUN apk update && apk add --no-cache --upgrade brotli-libs
+
 EXPOSE 80
