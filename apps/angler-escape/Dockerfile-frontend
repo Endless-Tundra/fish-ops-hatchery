@@ -15,8 +15,9 @@ FROM nginxinc/nginx-unprivileged:alpine AS runner
 
 # The base image ends with a non-root user, so switch to root just for package updates
 USER root
-## Updating libexpat to fix a vulnerability ##
-RUN apk update && apk add --no-cache --upgrade expat libexpat
+
+## Updating to fix a vulnerabilities ##
+RUN apk update && apk add --no-cache --upgrade expat libexpat brotli-libs
 
 COPY --from=build /app/dist /usr/share/nginx/html
 
