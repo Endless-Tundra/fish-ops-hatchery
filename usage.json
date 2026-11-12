@@ -1,11 +1,11 @@
 {
-  "updated_at": "2026-11-11T03:57:53.206370+00:00",
+  "updated_at": "2026-11-12T05:08:10.739395+00:00",
   "source": "live-gcp-usage-stats",
   "metrics": {
     "cloud_run": {
-      "requests": 26383,
-      "vcpu_seconds": 22017,
-      "display": "~26,383 requests & 22,017 vCPU-sec"
+      "requests": 24509,
+      "vcpu_seconds": 21817,
+      "display": "~24,509 requests & 21,817 vCPU-sec"
     },
     "artifact_registry": {
       "total_size_mb": 302.4,
@@ -18,9 +18,9 @@
       "display": "0.032 GB across all buckets"
     },
     "logging_monitoring": {
-      "ingested_gb": 0.0657,
+      "ingested_gb": 0.0632,
       "free_tier_limit_gb": 50,
-      "display": "0.0657 GiB ingested this month"
+      "display": "0.0632 GiB ingested this month"
     }
   }
 }
